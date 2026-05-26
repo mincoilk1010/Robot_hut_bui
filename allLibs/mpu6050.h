@@ -1,0 +1,25 @@
+#ifndef __MPU6050_H
+#define __MPU6050_H
+
+#include "main.h"
+#include "math.h"
+
+// Define cac dia chi thanh ghi, toan hoc
+#define     MPU6050_ADDR    0xD0				//dia chi i2c cua mpu6050 (dich phai 1 bit do i2c chi can 7 bit di chi)
+#define     RTD             57.2957795f //quy tu goc Rad sang Deg
+
+// khai bao extern de main.c co the doc dc debug truc tiep
+extern float pitch;
+extern float roll;
+
+//Cac data ma mpu doc duoc
+extern int16_t ax, ay, az, gx, gy, gz;
+extern float AX, AY, AZ, GX, GY, GZ;
+
+// Funtion xu ly
+void mpu6050_Init(void);
+void mpu6050_readGyro(void);
+void mpu6050_readAccl(void);
+void mpu6050_filter(void);
+
+#endif /* __MPU6050_H */
