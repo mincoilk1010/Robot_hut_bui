@@ -11,15 +11,21 @@
 // khai bao extern de main.c co the doc dc debug truc tiep
 extern float pitch;
 extern float roll;
-
+extern float yaw;
 //Cac data ma mpu doc duoc
 extern int16_t ax, ay, az, gx, gy, gz;
 extern float AX, AY, AZ, GX, GY, GZ;
-
+extern float GZ_calib;
 // Funtion xu ly
 void mpu6050_Init(void);
+void mpu6050_Calibrate(void);
 void mpu6050_readGyro(void);
 void mpu6050_readAccl(void);
-void mpu6050_filter(void);
+void mpu6050_filter(float dt);
+
+
+float mpu6050_angleDiff(float target, float current);
+float mpu6050_getYawSnapshot(void);
+float mpu6050_getYawDelta(float yaw_snapshot);
 
 #endif /* __MPU6050_H */
