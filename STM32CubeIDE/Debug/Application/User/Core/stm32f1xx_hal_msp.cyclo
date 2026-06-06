@@ -1,0 +1,3 @@
+D:/stm32f103c8t6/Robot_hut_bui-VL53L0X/Core/Src/stm32f1xx_hal_msp.c:62:6:HAL_MspInit	1
+D:/stm32f103c8t6/Robot_hut_bui-VL53L0X/Core/Src/stm32f1xx_hal_msp.c:89:6:HAL_I2C_MspInit	2
+D:/stm32f103c8t6/Robot_hut_bui-VL53L0X/Core/Src/stm32f1xx_hal_msp.c:124:6:HAL_I2C_MspDeInit	2

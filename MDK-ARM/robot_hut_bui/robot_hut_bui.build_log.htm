@@ -1,0 +1,100 @@
+<html>
+<body>
+<pre>
+<h1>µVision Build Log</h1>
+<h2>Tool Versions:</h2>
+IDE-Version: µVision V5.43.1.0
+Copyright (C) 2025 ARM Ltd and ARM Germany GmbH. All rights reserved.
+License Information: Minh Bui, kk, LIC=CZLZX-H73A9-013P1-CTP6J-FT85Y-V73V9
+ 
+Tool Versions:
+Toolchain:       MDK-ARM Plus  Version: 5.43.0.0
+Toolchain Path:  D:\keilc\ARM\ARMCLANG\Bin
+C Compiler:      ArmClang.exe V6.24
+Assembler:       Armasm.exe V6.24
+Linker/Locator:  ArmLink.exe V6.24
+Library Manager: ArmAr.exe V6.24
+Hex Converter:   FromElf.exe V6.24
+CPU DLL:         SARMCM3.DLL V5.43.0.0
+Dialog DLL:      DCM.DLL V1.17.5.0
+Target DLL:      STLink\ST-LINKIII-KEIL_SWO.dll V3.3.1.0
+Dialog DLL:      TCM.DLL V1.56.6.0
+ 
+<h2>Project:</h2>
+D:\stm32f103c8t6\Robot_hut_bui-VL53L0X\MDK-ARM\robot_hut_bui.uvprojx
+Project File Date:  06/05/2026
+
+<h2>Output:</h2>
+*** Using Compiler 'V6.24', folder: 'D:\keilc\ARM\ARMCLANG\Bin'
+Rebuild target 'robot_hut_bui'
+assembling startup_stm32f103xb.s...
+compiling stm32f1xx_it.c...
+compiling stm32f1xx_hal_gpio_ex.c...
+compiling stm32f1xx_hal_msp.c...
+compiling stm32f1xx_hal.c...
+compiling stm32f1xx_hal_gpio.c...
+compiling stm32f1xx_hal_rcc_ex.c...
+../Core/Src/main.c(24): warning: In file included from...
+../Drivers/VL53L0X/Inc\VL53L0X.h(10): warning: 'bool' macro redefined [-Wmacro-redefined]
+   10 | #define bool  uint8_t
+      |         ^
+D:\keilc\arm\ARMCLANG\bin\..\include\stdbool.h(15): note: previous definition is here
+   15 |     #define bool _Bool
+      |             ^
+1 warning generated.
+compiling main.c...
+compiling stm32f1xx_hal_rcc.c...
+compiling stm32f1xx_hal_pwr.c...
+compiling stm32f1xx_hal_cortex.c...
+compiling stm32f1xx_hal_dma.c...
+compiling stm32f1xx_hal_flash.c...
+compiling stm32f1xx_hal_exti.c...
+compiling stm32f1xx_hal_flash_ex.c...
+compiling system_stm32f1xx.c...
+compiling Servo.c...
+compiling ssd1306_fonts.c...
+compiling ssd1306_tests.c...
+compiling stm32f1xx_hal_tim_ex.c...
+../Drivers/VL53L0X/Src/VL53L0X.c(9): warning: In file included from...
+../Drivers/VL53L0X/Inc\VL53L0X.h(10): warning: 'bool' macro redefined [-Wmacro-redefined]
+   10 | #define bool  uint8_t
+      |         ^
+D:\keilc\arm\ARMCLANG\bin\..\include\stdbool.h(15): note: previous definition is here
+   15 |     #define bool _Bool
+      |             ^
+1 warning generated.
+compiling VL53L0X.c...
+compiling ssd1306.c...
+compiling stm32f1xx_hal_i2c.c...
+compiling stm32f1xx_hal_tim.c...
+linking...
+Program Size: Code=16966 RO-data=2226 RW-data=16 ZI-data=2952  
+FromELF: creating hex file...
+"robot_hut_bui\robot_hut_bui.axf" - 0 Error(s), 2 Warning(s).
+
+<h2>Software Packages used:</h2>
+
+Package Vendor: ARM
+                https://www.keil.com/pack/ARM.CMSIS.6.3.0.pack
+                ARM::CMSIS@6.3.0
+                CMSIS (Common Microcontroller Software Interface Standard)
+   * Component: CORE Version: 6.2.0
+
+Package Vendor: Keil
+                https://www.keil.com/pack/Keil.STM32F1xx_DFP.2.4.1.pack
+                Keil::STM32F1xx_DFP@2.4.1
+                STMicroelectronics STM32F1 Series Device Support, Drivers and Examples
+
+<h2>Collection of Component include folders:</h2>
+  ./RTE/_robot_hut_bui
+  D:/keilc/arm/pack/ARM/CMSIS/6.3.0/CMSIS/Core/Include
+  D:/keilc/arm/pack/Keil/STM32F1xx_DFP/2.4.1/Device/Include
+
+<h2>Collection of Component Files used:</h2>
+
+   * Component: ARM::CMSIS:CORE@6.2.0
+      Include file:  CMSIS/Core/Include/tz_context.h
+Build Time Elapsed:  00:00:02
+</pre>
+</body>
+</html>
