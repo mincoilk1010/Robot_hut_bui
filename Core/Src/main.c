@@ -24,6 +24,10 @@
 #include "VL53L0X.h"
 #include "ssd1306.h"
 #include "ssd1306_fonts.h"
+#include "Servo.h"
+#include "string.h"
+#include "math.h"
+#include "stdio.h"
 
 /* USER CODE END Includes */
 
@@ -51,10 +55,16 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 
-	// Initialise the VL53L0X
-	statInfo_t_VL53L0X distanceStr;
-	uint16_t distance;
-  uint16_t distance1;
+uint8_t rx_byte; //Ky tu dieu khien gui tu UART ve
+bool flag_servo_run = false;
+bool flag_vl53l0x_run = false;  
+uint16_t current_angle = 0; // Bien luu tru goc quay cua servo
+uint16_t angle_step = 10; // Buoc nhay cua servo
+
+// Initialise the VL53L0X
+statInfo_t_VL53L0X distanceStr;
+uint16_t distance;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -81,8 +91,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  char myTxt[] = "DIT CON ME MAY";
-  char screenMonitor;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -107,31 +115,43 @@ int main(void)
   MX_TIM2_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-	ssd1306_Init();
-  ssd1306_SetCursor(5, 5);
-  screenMonitor = ssd1306_WriteString(myTxt, Font_7x10, White);
-  ssd1306_UpdateScreen();
-  // ssd1306_Fill(White);
-  // ssd1306_UpdateScreen();
-	initVL53L0X(1, &hi2c1);
 
-	// Configure the sensor for high accuracy and speed in 20 cm.
-	// setSignalRateLimit(200);
-	// setVcselPulsePeriod(VcselPeriodPreRange, 10);
-	// setVcselPulsePeriod(VcselPeriodFinalRange, 14);
-	// setMeasurementTimingBudget(300 * 1000UL);
-	
+  if(initVL53L0X(1, &hi2c1) != 1) {
+    char msg_err[] = "Khoi tao VL53L0X that bai\r\n";
+    HAL_UART_Transmit(&huart1, (uint8_t*) msg_err, strlen(msg_err), 100);
+    while(1); //Treo o day neu khoi tao that bai
+  } else {
+    char msg_ok[] = "Khoi tao VL53L0X thanh cong\r\n";
+    HAL_UART_Transmit(&huart1, (uint8_t*) msg_ok, strlen(msg_ok), 100);
+  }
+
+  Servo_Init(&htim2, TIM_CHANNEL_1);
+  Servo_WriteAngle(0); // Dat servo o goc 0 do
+
+  //Bat che do ngat UART de nhan du lieu dieu khien
+  HAL_UART_Receive_IT(&huart1, &rx_byte, 1); // Bat che do ngat UART de nhan du lieu dieu khien
+  HAL_UART_Transmit(&huart1, (uint8_t*)"He thong san sang! Bam 1,2,3,4 de dieu khien.\r\n", 47, 10); // Thong bao san sang qua UART
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // uint16_t distance is the distance in millimeters.
-		// statInfo_t_VL53L0X distanceStr is the statistics read from the sensor.
-		distance = readRangeSingleMillimeters(&distanceStr);
-    distance1 = readRangeSingleMillimeters(0);
-		HAL_Delay(50);
+    char msg[50];
+    if (flag_vl53l0x_run) {
+        distance = readRangeContinuousMillimeters(0); // Doc khoang cach tu VL53L0X
+        sprintf(msg, "Goc: %d | Khoang cach: %d mm\r\n", current_angle, distance);
+        HAL_UART_Transmit(&huart1, (uint8_t*) msg, strlen(msg), 10); // Gui khoang cach qua UART
+    }
+
+    if(flag_servo_run) {
+        current_angle += angle_step; // Tang goc quay theo buoc nhay
+        if (current_angle >= 180 || current_angle <= 0) {
+            angle_step = -angle_step; // Neu vuot qua gioi han thi dao chieu
+        }
+        Servo_WriteAngle(current_angle); // Cap nhat goc quay cho servo
+    }
+    HAL_Delay(50);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -338,6 +358,31 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == USART1) { // Kiem tra xem ngat den tu UART1 hay khong
+        
+      if (rx_byte == '1') { 
+            flag_servo_run = true; // Bat co quay servo
+            HAL_UART_Transmit(&huart1, (uint8_t*)"\r\n-> SERVO: START\r\n", 19, 10); // Gui lai ky tu nhan duoc
+      }
+      else if (rx_byte == '2') {
+            flag_servo_run = false; // Tat quay servo
+            HAL_UART_Transmit(&huart1, (uint8_t*)"\r\n-> SERVO: STOP\r\n", 18, 10); // Gui lai ky tu nhan duoc
+      }
+      else if (rx_byte == '3') {
+            flag_vl53l0x_run = true; // Bat co do khoang cach
+            startContinuous(0); // Bat che do do lien tuc, khong co thoi gian giua cac lan do
+            HAL_UART_Transmit(&huart1, (uint8_t*)"\r\n-> VL53L0X: START\r\n", 21, 10); // Gui lai ky tu nhan duoc
+      }
+      else if (rx_byte == '4') {
+            flag_vl53l0x_run = false; // Tat co do khoang cach
+            stopContinuous(); // Tat che do do lien tuc
+            HAL_UART_Transmit(&huart1, (uint8_t*)"\r\n-> VL53L0X: STOP\r\n", 20, 10); // Gui lai ky tu nhan duoc
+      }
+        HAL_UART_Receive_IT(&huart1, &rx_byte, 1); // Kich hoat ngat UART de tiep tuc nhan du lieu    
+  }
+}
 
 /* USER CODE END 4 */
 

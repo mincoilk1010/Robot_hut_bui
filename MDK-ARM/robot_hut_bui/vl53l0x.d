@@ -21,4 +21,5 @@ robot_hut_bui/vl53l0x.o: ..\Drivers\VL53L0X\Src\VL53L0X.c \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_pwr.h \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_tim.h \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_tim_ex.h \
+  ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_uart.h \
   ..\Drivers\VL53L0X\Inc\VL53L0X.h ..\Core\Inc\main.h

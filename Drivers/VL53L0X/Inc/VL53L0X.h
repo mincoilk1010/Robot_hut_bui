@@ -158,7 +158,6 @@ uint8_t setSignalRateLimit(float limit_Mcps);
 
 // Returns the current return signal rate limit in MCPS.
 float getSignalRateLimit(void);
-
 // Set the measurement timing budget in microseconds, which is the time allowed
 // for one measurement; the ST API and this library take care of splitting the
 // timing budget among the sub-steps in the ranging sequence. A longer timing

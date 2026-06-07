@@ -22,5 +22,6 @@ robot_hut_bui/ssd1306_tests.o: ..\Drivers\OLED\Src\ssd1306_tests.c \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_pwr.h \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_tim.h \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_tim_ex.h \
+  ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_uart.h \
   ..\Drivers\OLED\Inc\ssd1306_tests.h \
   ..\Drivers\OLED\Inc\ssd1306_fonts.h

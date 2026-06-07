@@ -13,7 +13,7 @@ void Servo_WriteAngle(uint16_t angle) {
     if (angle > 180) {
         angle = 180;
     }
-    uint16_t CCCR_Value = (1000 + (angle * 1000 / 180 ));
-    //uint16_t CCR_Value = (500 + (angle * 1000 / 180 ));
+    // uint16_t CCCR_Value = (1000 + (angle * 1000 / 180 ));
+    uint16_t CCCR_Value = (500 + (angle * 2000 / 180 ));
     __HAL_TIM_SET_COMPARE(_htim, _channel, CCCR_Value);
 }

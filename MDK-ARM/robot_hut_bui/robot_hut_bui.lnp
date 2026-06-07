@@ -17,6 +17,7 @@
 "robot_hut_bui\stm32f1xx_hal_exti.o"
 "robot_hut_bui\stm32f1xx_hal_tim.o"
 "robot_hut_bui\stm32f1xx_hal_tim_ex.o"
+"robot_hut_bui\stm32f1xx_hal_uart.o"
 "robot_hut_bui\system_stm32f1xx.o"
 "robot_hut_bui\vl53l0x.o"
 "robot_hut_bui\servo.o"
