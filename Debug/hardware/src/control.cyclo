@@ -1,0 +1,7 @@
+../hardware/src/control.c:16:6:HAL_GPIO_EXTI_Callback	7
+../hardware/src/control.c:57:6:Kinematics_inverse	1
+../hardware/src/control.c:65:6:Kinematics_update	3
+../hardware/src/control.c:83:6:Kinematics_obs_pos	1
+../hardware/src/control.c:91:6:Kinematics_reset	1
+../hardware/src/control.c:96:6:pid_setup	1
+../hardware/src/control.c:102:6:motorcontrol_pid	7

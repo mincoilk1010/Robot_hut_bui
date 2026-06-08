@@ -1,0 +1,5 @@
+../hardware/src/delay.c:39:6:delay_init	1
+../hardware/src/delay.c:122:6:delay_us	2
+../hardware/src/delay.c:192:6:delay_ms	3
+../hardware/src/delay.c:216:5:millis	1
+../hardware/src/delay.c:230:5:micros	1

@@ -1,0 +1,6 @@
+../hardware/src/mpu6050.c:23:6:mpu6050_Init	2
+../hardware/src/mpu6050.c:59:6:mpu6050_Calibrate	2
+../hardware/src/mpu6050.c:77:6:mpu6050_readGyro	1
+../hardware/src/mpu6050.c:95:6:mpu6050_readAccl	1
+../hardware/src/mpu6050.c:111:6:mpu6050_filter	5
+../hardware/src/mpu6050.c:144:7:mpu6050_angleDiff	3

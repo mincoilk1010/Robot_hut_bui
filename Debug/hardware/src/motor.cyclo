@@ -1,0 +1,6 @@
+../hardware/src/motor.c:10:6:motor_pwm_init	1
+../hardware/src/motor.c:20:6:motor_r_stop	1
+../hardware/src/motor.c:26:6:motor_l_stop	1
+../hardware/src/motor.c:31:6:motor_stop	1
+../hardware/src/motor.c:40:6:motor_run	7
+../hardware/src/motor.c:83:6:motor_init	1
