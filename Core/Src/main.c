@@ -74,8 +74,7 @@ void uart_printAngles(void)
 {
     char buf[64];
     snprintf(buf, sizeof(buf),
-             "Pitch:%6.2f  Roll:%6.2f  Yaw:%7.2f\r\n",
-             pitch, roll, yaw);
+             "Current Yaw:%7.2f\r\n", yaw);
     uart_print(buf);
 }
 
@@ -127,7 +126,7 @@ int main(void)
   uart_print("----------------------------\r\n");
 	
 	uint32_t previous_time = HAL_GetTick();
-	uint32_t last_print_time = HAL_GetTick();  // Tan suat gui UART ri�ng bi?t
+	uint32_t last_print_time = HAL_GetTick();  // Tan suat gui UART ri�ng bi?t
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -135,25 +134,13 @@ int main(void)
   while (1)
   {
 		uint32_t current_time = HAL_GetTick();
-    float dt = (float)(current_time - previous_time) / 1000.0f; // �oi sang gi�y
-    previous_time = current_time;
 		
-		mpu6050_readGyro();
-		mpu6050_readAccl();
-		mpu6050_filter(dt);
-		
-		//Gui uart moi 50ms - du de hien thi
+		// Gửi UART mỗi 50ms lên Hercules để quan sát đồ thị/giá trị
 		if ((current_time - last_print_time) >= 50)
         {
             last_print_time = current_time;
             uart_printAngles();
         }
-		
-		
-		
-		
-		
-		HAL_Delay(1);
 		
 		
     /* USER CODE END WHILE */
@@ -283,14 +270,25 @@ static void MX_USART1_UART_Init(void)
   */
 static void MX_GPIO_Init(void)
 {
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
 
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+
+  /*Configure GPIO pin : PB12 */
+  GPIO_InitStruct.Pin = GPIO_PIN_12;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 2, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
