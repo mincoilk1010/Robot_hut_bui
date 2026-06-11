@@ -53,6 +53,12 @@ default.size.stdout \
 OBJDUMP_LIST += \
 doan_01.list \
 
+OBJCOPY_HEX += \
+doan_01.hex \
+
+OBJCOPY_BIN += \
+doan_01.bin \
+
 
 # All Target
 all: main-build
@@ -62,7 +68,7 @@ main-build: doan_01.elf secondary-outputs
 
 # Tool invocations
 doan_01.elf doan_01.map: $(OBJS) $(USER_OBJS) E:\STM32f4\doan_01\STM32F407VETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "doan_01.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"E:\STM32f4\doan_01\STM32F407VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="doan_01.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+	arm-none-eabi-gcc -o "doan_01.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"E:\STM32f4\doan_01\STM32F407VETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="doan_01.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -u _scanf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -76,12 +82,22 @@ doan_01.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
+doan_01.hex: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objcopy  -O ihex $(EXECUTABLES) "doan_01.hex"
+	@echo 'Finished building: $@'
+	@echo ' '
+
+doan_01.bin: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "doan_01.bin"
+	@echo 'Finished building: $@'
+	@echo ' '
+
 # Other Targets
 clean:
-	-$(RM) default.size.stdout doan_01.elf doan_01.list doan_01.map
+	-$(RM) default.size.stdout doan_01.bin doan_01.elf doan_01.hex doan_01.list doan_01.map
 	-@echo ' '
 
-secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
+secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_HEX) $(OBJCOPY_BIN)
 
 fail-specified-linker-script-missing:
 	@echo 'Error: Cannot find the specified linker script. Check the linker settings in the build configuration.'

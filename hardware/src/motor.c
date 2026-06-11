@@ -17,13 +17,13 @@ void motor_pwm_init(u8 psc, u16 arr)
 	HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_4);
 
 }
-void motor_r_stop()
+void motor_l_stop()
 {
 	TIM4->CCR1 = 0;
 	TIM4->CCR2 = 0;
 
 }
-void motor_l_stop()
+void motor_r_stop()
 {
 	TIM4->CCR3 = 0;
 	TIM4->CCR4 = 0;

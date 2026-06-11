@@ -1,5 +1,5 @@
-../hardware/src/delay.c:39:6:delay_init	32	static
-../hardware/src/delay.c:122:6:delay_us	24	static
-../hardware/src/delay.c:192:6:delay_ms	16	static
-../hardware/src/delay.c:216:5:millis	16	static
-../hardware/src/delay.c:230:5:micros	16	static
+../hardware/src/delay.c:40:6:delay_init	32	static
+../hardware/src/delay.c:125:6:delay_us	24	static
+../hardware/src/delay.c:195:6:delay_ms	16	static
+../hardware/src/delay.c:210:5:millis	8	static
+../hardware/src/delay.c:224:5:micros	16	static

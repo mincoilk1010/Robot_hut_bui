@@ -8,22 +8,23 @@
 #include "motor.h"
 Encoder_data_t ec_l;
 Encoder_data_t ec_r;
-_vo u32 g_ms;
+
 _vo i8 Motor_Left_Dir;
 _vo i8 Motor_Right_Dir;
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-    if(htim->Instance == TIM3)
+	g_ms = HAL_GetTick();
+    if(htim->Instance == TIM2)
     {
-        uint32_t cap = TIM3->CCR2;
+        uint32_t cap = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
 
-        uint32_t per = (uint16_t)(cap - (uint16_t)ec_l.cap_last);
+        uint32_t per = (u32)(cap - (u32)ec_l.cap_last);
 
         ec_l.cap_last = cap;
         ec_l.tick = g_ms;
         ec_l.total++;
 
-        if(per > 200)
+        if(per > 100)
         {
             ec_l.period = per;
 
@@ -52,15 +53,15 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 
     if(htim->Instance == TIM5)
     {
-        uint32_t cap = TIM5->CCR2;
+        uint32_t cap = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_2);
 
-        uint32_t per = (uint16_t)(cap - (uint16_t)ec_r.cap_last);
+        uint32_t per = (u32)(cap - (u32)ec_r.cap_last);
 
         ec_r.cap_last = cap;
         ec_r.tick = g_ms;
         ec_r.total++;
 
-        if(per > 200)
+        if(per > 100)
         {
             ec_r.period = per;
 
@@ -90,6 +91,9 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 
 void encoder_init()
 {
-	HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_2);
+	HAL_TIM_Base_Start(&htim2);
+	HAL_TIM_Base_Start(&htim5);
+
+	HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
 	HAL_TIM_IC_Start_IT(&htim5, TIM_CHANNEL_2);
 }

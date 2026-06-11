@@ -17,46 +17,47 @@
 #include "delay.h"
 #include "main.h"
 #include "stm32f4xx_hal.h"
+#include "encoder.h"
 //#include "encoder.h"
-#define TIMER2 1
+#define TIMER3 1
 #define SYS_TICK 2
-#define DELAY_SRC TIMER2
+#define DELAY_SRC TIMER3
 //#define DELAY_SRC SYS_TICK
 #
-#define TIM2_CLK_MHz 84
-#define TIM2_BASEADDR      (0x40000000U + 0x0000)
+#define TIM3_BASEADDR (0x40000400U)
+#define TIM3_CLK_MHz 84
 #define SYSCLK_MHz 168
-#if DELAY_SRC != TIMER2 && DELAY_SRC != SYS_TICK
+#if DELAY_SRC != TIMER3 && DELAY_SRC != SYS_TICK
 #error DELAY_SRC must be TIMER2 or SYS_TICK
 #endif
 u32 tim1_cnt = 0;
 
 #if(DELAY_SRC == SYS_TICK)
 
-static _vo u32 systick_ms = 0;
+_vo u32 systick_ms = 0;
 static u32 fac_us = 0;
 #endif
 void delay_init()
 {
-#if (DELAY_SRC == TIMER2)
+#if (DELAY_SRC == TIMER3)
 	//set 1 SEC for timer
 	//rcc-->16Mhz->>psc(16)->>1000000Hz/1cnt ->1us
 	//ARR : 1000
 
 
 	//TIM2_PCLK_EN();
-	__HAL_RCC_TIM2_CLK_ENABLE();
+	__HAL_RCC_TIM3_CLK_ENABLE();
 
-	u32* CR1 = (u32*)(TIM2_BASEADDR + 0x00);
-	u32* ARR = (u32*)(TIM2_BASEADDR + 0x2C);
-	u32* PSC = (u32*)(TIM2_BASEADDR + 0x28);
+	u32* CR1 = (u32*)(TIM3_BASEADDR + 0x00);
+	u32* ARR = (u32*)(TIM3_BASEADDR + 0x2C);
+	u32* PSC = (u32*)(TIM3_BASEADDR + 0x28);
 	//u32* DIER = (u32*)(TIM2_BASEADDR + 0X0C);
-	u32* CNT = (u32*)(TIM2_BASEADDR + 0X24);
-	u32* EGR = (u32*)(TIM2_BASEADDR + 0x14);
+	u32* CNT = (u32*)(TIM3_BASEADDR + 0X24);
+	u32* EGR = (u32*)(TIM3_BASEADDR + 0x14);
 	*CR1 &= ~(1 << 0);
 
-	*ARR = 0xffffffff;
-	*PSC = TIM2_CLK_MHz - 1;
+	*ARR = 0xffff;
+	*PSC = TIM3_CLK_MHz - 1;
 	*CNT = 0;
 
 	*EGR = 1; // Update generation
@@ -108,24 +109,26 @@ void tim1_delay_1sec()
 }
 
 */
+/*
 #if(DELAY_SRC == SYS_TICK)
 
 void SysTick_Handler(void)
 {
+	HAL_IncTick();
 	systick_ms++;
-	//g_ms++;
+	g_ms++;
 
 }
 
 #endif
-
+*/
 void delay_us(u32 us)
 {
-#if (DELAY_SRC == TIMER2)
-	u32 *CNT = (u32*)(TIM2_BASEADDR + 0x24);
+#if (DELAY_SRC == TIMER3)
+	u32 *CNT = (u32*)(TIM3_BASEADDR + 0x24);
 
 	u32 start = *CNT;
-	while((u32)(*CNT -start) < us);
+	while((u16)((u16)*CNT -start) < (u16)us);
 #else
 	u32 temp;
 	u32 ticks;
@@ -191,18 +194,9 @@ void delay_us(u32 us)
 }
 void delay_ms(u32 mssec)
 {
-#if (DELAY_SRC == TIMER2)
+#if (DELAY_SRC == TIMER3)
 
-    while (mssec >= 1000U)
-    {
-        delay_us(1000000U);
-        mssec -= 1000U;
-    }
-
-    if (mssec > 0U)
-    {
-        delay_us(mssec * 1000U);
-    }
+	HAL_Delay(mssec);
 
 #else
 
@@ -215,10 +209,10 @@ void delay_ms(u32 mssec)
 
 u32 millis(void)
 {
-#if (DELAY_SRC == TIMER2)
+#if (DELAY_SRC == TIMER3)
 
-	u32 *CNT = (u32 *)(TIM2_BASEADDR + 0x24);
-	return (*CNT) / 1000U;
+
+	return HAL_GetTick();
 
 #else
 
@@ -229,9 +223,9 @@ u32 millis(void)
 
 u32 micros(void)
 {
-#if (DELAY_SRC == TIMER2)
+#if (DELAY_SRC == TIMER3)
 
-	u32 *CNT = (u32 *)(TIM2_BASEADDR + 0x24);
+	u32 *CNT = (u32 *)(TIM3_BASEADDR + 0x24);
 	return *CNT;
 
 #else

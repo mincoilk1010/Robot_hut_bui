@@ -1,2 +1,2 @@
 ../hardware/src/encoder.c:14:6:HAL_TIM_IC_CaptureCallback	40	static
-../hardware/src/encoder.c:91:6:encoder_init	8	static
+../hardware/src/encoder.c:92:6:encoder_init	8	static

@@ -52,8 +52,7 @@ typedef struct
 extern Encoder_data_t ec_l;
 extern Encoder_data_t ec_r;
 extern volatile u32 g_ms ;
-extern TIM_HandleTypeDef htim3;
-
+extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim5;
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim);
