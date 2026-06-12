@@ -28,7 +28,7 @@
 #include "string.h"
 #include "math.h"
 #include "stdio.h"
-
+#include "navigation.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,12 +58,15 @@ UART_HandleTypeDef huart1;
 uint8_t rx_byte; //Ky tu dieu khien gui tu UART ve
 bool flag_servo_run = false;
 bool flag_vl53l0x_run = false;  
-uint16_t current_angle = 0; // Bien luu tru goc quay cua servo
-uint16_t angle_step = 10; // Buoc nhay cua servo
+int16_t current_angle = 90; // Bien luu tru goc quay cua servo
+int16_t angle_step = 10; // Buoc nhay cua servo
 
 // Initialise the VL53L0X
 statInfo_t_VL53L0X distanceStr;
 uint16_t distance;
+
+//Mang luu gia tri VL53L0X o cac goc quay
+uint16_t Lidar_Map[181];
 
 /* USER CODE END PV */
 
@@ -123,10 +126,10 @@ int main(void)
   } else {
     char msg_ok[] = "Khoi tao VL53L0X thanh cong\r\n";
     HAL_UART_Transmit(&huart1, (uint8_t*) msg_ok, strlen(msg_ok), 100);
-  }
+  } 
 
   Servo_Init(&htim2, TIM_CHANNEL_1);
-  Servo_WriteAngle(0); // Dat servo o goc 0 do
+  Servo_WriteAngle(90); // Dat servo o goc 90 do
 
   //Bat che do ngat UART de nhan du lieu dieu khien
   HAL_UART_Receive_IT(&huart1, &rx_byte, 1); // Bat che do ngat UART de nhan du lieu dieu khien
@@ -137,10 +140,14 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    char msg[50];
+		char msg[50];
+    char alert_msg[50];
     if (flag_vl53l0x_run) {
         distance = readRangeContinuousMillimeters(0); // Doc khoang cach tu VL53L0X
-        sprintf(msg, "Goc: %d | Khoang cach: %d mm\r\n", current_angle, distance);
+        sprintf(msg, "%d,%d\n", current_angle, distance);
+        if(current_angle >= 0 && current_angle <= 180) {
+            Lidar_Map[current_angle] = distance; // Luu gia tri do khoang cach vao mang theo goc quay
+        }
         HAL_UART_Transmit(&huart1, (uint8_t*) msg, strlen(msg), 10); // Gui khoang cach qua UART
     }
 
@@ -151,7 +158,12 @@ int main(void)
         }
         Servo_WriteAngle(current_angle); // Cap nhat goc quay cho servo
     }
-    HAL_Delay(50);
+
+    if(Lidar_Map[90] > 0 && Lidar_Map[90] < SAFE_DISTANCE) { // Neu co vat can o truoc
+        sprintf(alert_msg, "Phat hien vat can %d mm\n", Lidar_Map[90]);
+        HAL_UART_Transmit(&huart1, (uint8_t*) alert_msg, strlen(alert_msg), 10); // Gui canh bao qua UART
+    }
+    HAL_Delay(50); 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

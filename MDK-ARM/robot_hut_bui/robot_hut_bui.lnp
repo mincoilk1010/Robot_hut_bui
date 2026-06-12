@@ -24,6 +24,7 @@
 "robot_hut_bui\ssd1306.o"
 "robot_hut_bui\ssd1306_fonts.o"
 "robot_hut_bui\ssd1306_tests.o"
+"robot_hut_bui\navigation.o"
 --strict --scatter "robot_hut_bui\robot_hut_bui.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
 --info sizes --info totals --info unused --info veneers

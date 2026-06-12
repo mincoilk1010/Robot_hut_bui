@@ -24,4 +24,4 @@ robot_hut_bui/main.o: ..\Core\Src\main.c ..\Core\Inc\main.h \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_uart.h \
   ..\Drivers\VL53L0X\Inc\VL53L0X.h ..\Drivers\OLED\Inc\ssd1306.h \
   ..\Drivers\OLED\Inc\ssd1306_conf.h ..\Drivers\OLED\Inc\ssd1306_fonts.h \
-  ..\Drivers\Servo\Inc\Servo.h
+  ..\Drivers\Servo\Inc\Servo.h ..\MyLib\Inc\navigation.h

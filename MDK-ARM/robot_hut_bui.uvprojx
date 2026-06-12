@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F103xB</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;../Drivers/VL53L0X/Inc;../Drivers/Servo/Inc;../Drivers/OLED/Inc</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;../Drivers/VL53L0X/Inc;../Drivers/Servo/Inc;../Drivers/OLED/Inc;..\MyLib\Inc</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -691,6 +691,16 @@
               <FileName>ssd1306_tests.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Drivers\OLED\Src\ssd1306_tests.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>MyLib</GroupName>
+          <Files>
+            <File>
+              <FileName>navigation.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\MyLib\Src\navigation.c</FilePath>
             </File>
           </Files>
         </Group>
