@@ -65,8 +65,6 @@ int16_t angle_step = 10; // Buoc nhay cua servo
 statInfo_t_VL53L0X distanceStr;
 uint16_t distance;
 
-//Mang luu gia tri VL53L0X o cac goc quay
-uint16_t Lidar_Map[181];
 
 /* USER CODE END PV */
 
