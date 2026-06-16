@@ -48,11 +48,13 @@ void Nav_MPU_Turn(int dir) {
 
     // Đợi góc xoay hoàn tất (sai số < 3 độ)
     f32 th_err;
+    uint32_t turn_start = HAL_GetTick();
     do {
         th_err = ph.theta_t - pose.theta;
-        while(th_err > PI) th_err -= 2.0f * PI;
+        while(th_err >  PI) th_err -= 2.0f * PI;
         while(th_err < -PI) th_err += 2.0f * PI;
         HAL_Delay(10);
+        if((HAL_GetTick() - turn_start) > 3000) break;
     } while (fabsf(th_err) > DEG2RAD(3.0f));
 
     PH_deactivate();
