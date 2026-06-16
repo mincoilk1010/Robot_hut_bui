@@ -27,7 +27,7 @@ void HCSR04_Cliff_Start(HCSR04_Cliff_t* dev)
         __HAL_TIM_SET_CAPTUREPOLARITY(dev->htim, dev->TIM_Channel, TIM_INPUTCHANNELPOLARITY_RISING);
 
         HAL_GPIO_WritePin(dev->TRIG_Port, dev->TRIG_Pin, GPIO_PIN_SET);
-        HAL_Delay(1);
+        HAL_Delay(15);
         HAL_GPIO_WritePin(dev->TRIG_Port, dev->TRIG_Pin, GPIO_PIN_RESET);
 
         dev->state = HCSR04_WAIT_RISING_STATE;
