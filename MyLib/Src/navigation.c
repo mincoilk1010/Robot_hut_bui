@@ -57,7 +57,7 @@ Nav_Direction Scan_and_Decide(void) {
         //Phan tich diem sau nhat
         //check ben phai
         if (angle >=0 && angle <= 80) {
-            if(dist > left_clearance) {
+            if(dist > right_clearance) {
                 right_clearance = dist;
                 right_edge_angle = angle; 
             }

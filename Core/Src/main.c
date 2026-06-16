@@ -29,6 +29,7 @@
 #include "math.h"
 #include "stdio.h"
 #include "navigation.h"
+#include "oled.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,6 +49,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
+I2C_HandleTypeDef hi2c2;
 
 TIM_HandleTypeDef htim2;
 
@@ -58,7 +60,7 @@ UART_HandleTypeDef huart1;
 uint8_t rx_byte; //Ky tu dieu khien gui tu UART ve
 bool flag_servo_run = false;
 bool flag_vl53l0x_run = false;  
-int16_t current_angle = 90; // Bien luu tru goc quay cua servo
+int16_t current_angle = 0; // Bien luu tru goc quay cua servo
 int16_t angle_step = 10; // Buoc nhay cua servo
 
 // Initialise the VL53L0X
@@ -74,6 +76,7 @@ static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_I2C2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -115,6 +118,7 @@ int main(void)
   MX_I2C1_Init();
   MX_TIM2_Init();
   MX_USART1_UART_Init();
+  MX_I2C2_Init();
   /* USER CODE BEGIN 2 */
 
   if(initVL53L0X(1, &hi2c1) != 1) {
@@ -127,11 +131,21 @@ int main(void)
   } 
 
   Servo_Init(&htim2, TIM_CHANNEL_1);
-  Servo_WriteAngle(90); // Dat servo o goc 90 do
+  Servo_WriteAngle(0); // Dat servo o goc 0 do
 
   //Bat che do ngat UART de nhan du lieu dieu khien
   HAL_UART_Receive_IT(&huart1, &rx_byte, 1); // Bat che do ngat UART de nhan du lieu dieu khien
   HAL_UART_Transmit(&huart1, (uint8_t*)"He thong san sang! Bam 1,2,3,4 de dieu khien.\r\n", 47, 10); // Thong bao san sang qua UART
+
+  // --- KHOI TAO MAN HINH OLED CHAO MUNG ---
+  OLED_Init();
+  ssd1306_SetCursor(10, 25);
+  ssd1306_WriteString("SYSTEM READY", Font_7x10, White);
+  ssd1306_SetCursor(10, 40);
+  ssd1306_WriteString("Press 1 & 3", Font_7x10, White);
+  ssd1306_UpdateScreen();
+  // ----------------------------------------
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -160,6 +174,11 @@ int main(void)
     if(Lidar_Map[90] > 0 && Lidar_Map[90] < SAFE_DISTANCE) { // Neu co vat can o truoc
         sprintf(alert_msg, "Phat hien vat can %d mm\n", Lidar_Map[90]);
         HAL_UART_Transmit(&huart1, (uint8_t*) alert_msg, strlen(alert_msg), 10); // Gui canh bao qua UART
+    }
+
+    //CAP NHAT MAN HINH OLED (Chi khi ca 2 deu dang chay)
+    if(flag_servo_run && flag_vl53l0x_run) {
+        OLED_DrawRadarMap();
     }
     HAL_Delay(50); 
     /* USER CODE END WHILE */
@@ -239,6 +258,40 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief I2C2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C2_Init(void)
+{
+
+  /* USER CODE BEGIN I2C2_Init 0 */
+
+  /* USER CODE END I2C2_Init 0 */
+
+  /* USER CODE BEGIN I2C2_Init 1 */
+
+  /* USER CODE END I2C2_Init 1 */
+  hi2c2.Instance = I2C2;
+  hi2c2.Init.ClockSpeed = 400000;
+  hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c2.Init.OwnAddress1 = 0;
+  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c2.Init.OwnAddress2 = 0;
+  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C2_Init 2 */
+
+  /* USER CODE END I2C2_Init 2 */
 
 }
 

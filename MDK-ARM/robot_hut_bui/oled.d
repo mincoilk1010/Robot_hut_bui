@@ -1,4 +1,5 @@
-robot_hut_bui/main.o: ..\Core\Src\main.c ..\Core\Inc\main.h \
+robot_hut_bui/oled.o: ..\MyLib\Src\OLED.c ..\MyLib\Inc\oled.h \
+  ..\Drivers\OLED\Inc\ssd1306.h ..\Drivers\OLED\Inc\ssd1306_conf.h \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal.h \
   ..\Core\Inc\stm32f1xx_hal_conf.h \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_rcc.h \
@@ -22,7 +23,5 @@ robot_hut_bui/main.o: ..\Core\Src\main.c ..\Core\Inc\main.h \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_tim.h \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_tim_ex.h \
   ..\Drivers\STM32F1xx_HAL_Driver\Inc\stm32f1xx_hal_uart.h \
-  ..\Drivers\VL53L0X\Inc\VL53L0X.h ..\Drivers\OLED\Inc\ssd1306.h \
-  ..\Drivers\OLED\Inc\ssd1306_conf.h ..\Drivers\OLED\Inc\ssd1306_fonts.h \
-  ..\Drivers\Servo\Inc\Servo.h ..\MyLib\Inc\navigation.h \
-  ..\MyLib\Inc\oled.h
+  ..\MyLib\Inc\navigation.h ..\Drivers\VL53L0X\Inc\VL53L0X.h \
+  ..\Core\Inc\main.h ..\Drivers\Servo\Inc\Servo.h
