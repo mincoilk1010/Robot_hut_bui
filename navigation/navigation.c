@@ -31,8 +31,15 @@ void Nav_Motor_Forward(void) {
 
 void Nav_Motor_Stop(void) {
     g_sp_v = 0.0f;
-    PH_activate(); // Neo cứng tọa độ
+    g_sp_w = 0.0f;
+    ctrl_mode = CTRL_IDLE;
 }
+
+void Nav_Motor_Hold(void) {
+    PH_activate();
+    ctrl_mode = CTRL_POSE_HOLD;
+}
+
 
 void Nav_MPU_Turn(int dir) {
     ph.x_t = pose.x;
@@ -97,7 +104,7 @@ Nav_Direction Scan_and_Decide(void) {
         Lidar_Map[angle] = dist;
 
         if (angle >= 0 && angle <= 80) {
-            if(dist > left_clearance) {
+            if(dist > right_clearance) {
                 right_clearance = dist;
                 right_edge_angle = angle;
             }
@@ -108,6 +115,7 @@ Nav_Direction Scan_and_Decide(void) {
                 left_edge_angle = angle;
             }
         }
+
     }
 
     Servo_WriteAngle(90);
