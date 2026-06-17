@@ -1,0 +1,9 @@
+../hardware/src/vl53_scan.c:16:13:_svo	2
+../hardware/src/vl53_scan.c:22:13:_enter_narrow	1
+../hardware/src/vl53_scan.c:29:13:_enter_wide	1
+../hardware/src/vl53_scan.c:38:6:scanner_init	2
+../hardware/src/vl53_scan.c:48:6:scanner_task	17
+../hardware/src/vl53_scan.c:97:6:scanner_get	2
+../hardware/src/vl53_scan.c:101:6:scanner_front	1
+../hardware/src/vl53_scan.c:104:6:scanner_has_obs	3
+../hardware/src/vl53_scan.c:110:10:scanner_mode	1

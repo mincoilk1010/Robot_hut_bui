@@ -1,0 +1,5 @@
+../hardware/src/nav.c:19:13:_nenter	16	static
+../hardware/src/nav.c:21:14:_dist	16	static
+../hardware/src/nav.c:29:13:_fwd_ctrl	16	static
+../hardware/src/nav.c:37:6:nav_init	8	static
+../hardware/src/nav.c:47:6:nav_task	48	static

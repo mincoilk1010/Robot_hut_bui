@@ -52,18 +52,21 @@ void mpu6050_Init(void)
 // Ham hieu chuan: goi ham nay khi vua bat nguon
 void mpu6050_Calibrate(void)
 {
+
     long sumGZ = 0;
-    // Đọc 2000 lần lấy trung bình nhiễu tĩnh trục Z
+    // doc 2000 lan de lay gia tri trung binh sai so tinh
     for (int i = 0; i < 2000; i++) {
-        uint8_t gy_data[2];
-        // Chỉ đọc riêng 2 thanh ghi của trục Z (0x47 và 0x48) thay vì đọc cả 6 thanh ghi
-        HAL_I2C_Mem_Read(&hi2c2, MPU6050_ADDR, 0x47, 1, gy_data, 2, 10);
-        int16_t gz_raw = (int16_t)(gy_data[0] << 8 | gy_data[1]);
+        uint8_t gy_data[6];
+        HAL_I2C_Mem_Read(&hi2c2, MPU6050_ADDR, 0x43, 1, gy_data, 6, 10);
+        int16_t gz_raw = (int16_t)(gy_data[4] << 8 | gy_data[5]);
         sumGZ += gz_raw;
         HAL_Delay(1);
     }
+    // Tinh toan gi tri offset sang float
     GZ_calib = (float)(sumGZ / 2000.0f) / 131.0f;
-    yaw = 0.0f; // Reset góc robot về vị trí 0 ban đầu
+		// Reset yaw ve 0 sau khi calibrate
+    yaw = 0.0f;
+
 }
 
 

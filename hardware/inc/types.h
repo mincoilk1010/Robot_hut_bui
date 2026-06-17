@@ -29,12 +29,12 @@ typedef int32_t i32;
 #define dt_ms               20u
 
 
-#define KP_r 1250.0f
-#define KI_r 450.0f
-#define KD_r 0.03f
-#define KP_l 1250.0f
-#define KI_l 450.0f
-#define KD_l 0.03f
+#define KP_r 1450.0f
+#define KI_r 470.0f
+#define KD_r 0.028f
+#define KP_l 1450.0f
+#define KI_l 470.0f
+#define KD_l 0.028f
 #define pid_int_min       -999.0f
 #define pid_int_max          999.0f
 #define pid_out_min        -999.0f

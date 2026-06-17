@@ -34,7 +34,6 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  E:/STM32f4/doan_01/hardware/inc/pid.h \
  E:/STM32f4/doan_01/hardware/inc/motor.h \
  E:/STM32f4/doan_01/hardware/inc/encoder.h \
- E:/STM32f4/doan_01/hardware/inc/hc_sr04.h \
  E:/STM32f4/doan_01/hardware/inc/mpu6050.h \
  E:/STM32f4/doan_01/hardware/inc/delay.h \
  E:/STM32f4/doan_01/hardware/inc/mpu6050.h \
@@ -79,7 +78,6 @@ E:/STM32f4/doan_01/hardware/inc/types.h:
 E:/STM32f4/doan_01/hardware/inc/pid.h:
 E:/STM32f4/doan_01/hardware/inc/motor.h:
 E:/STM32f4/doan_01/hardware/inc/encoder.h:
-E:/STM32f4/doan_01/hardware/inc/hc_sr04.h:
 E:/STM32f4/doan_01/hardware/inc/mpu6050.h:
 E:/STM32f4/doan_01/hardware/inc/delay.h:
 E:/STM32f4/doan_01/hardware/inc/mpu6050.h:

@@ -82,7 +82,7 @@ static void MX_I2C1_Init(void);
 char uart_buf[200];
 u32 prev_10ms = 0;
 _vo u32 g_ms = 0;
- _vo float g_sp_v =0.0f,g_sp_w = 1.0f;
+ _vo float g_sp_v =0.0f,g_sp_w = 0.0f;
 i16 p_l ,p_r ;
 float sr ,sl ;
 _vo u8  Flag_Target ;
@@ -144,6 +144,7 @@ int main(void)
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
+
   motor_init(7,1000);
   encoder_init();
   pid_setup();
@@ -151,90 +152,19 @@ int main(void)
   mpu6050_Init();
   mpu6050_Calibrate();
   hcsr04_init();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
+   // u32 t=0;
   //turn_start(90.0f);
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    if(hc[0].f)
-    {
-      hc[0].f = 0;
-      			 if(!hc[0].first_cap)
-			 {
-				hc[0].val1 = TIM1->CCR1;
-				hc[0].first_cap = 1;
-				TIM1->CCER |= (1 << 1); // falling
-			 }
-			 else
-			 {
-				hc[0].val2 = TIM1->CCR1;
-				if(hc[0].val2 > hc[0].val1)
-				{
-					hc[0].diff = hc[0].val2 - hc[0].val1;
-				}else
-				{
-					hc[0].diff = 0xFFFF - hc[0].val1 + hc[0].val2;
-				}
-
-				if(hc[0].diff > 1400)
-				{
-					hc[0].d = 9999;
-				}
-				else{
-					// d = time * 0.17
-					// v am thanh = 343 m/s = 0.343 mm/us
-					hc[0].d = (u16)(hc[0].diff * 17 / 100);
-
-				}
-				hc[0].done = 1; // bao timer do xong
-				hc[0].first_cap = 0;
-				TIM1->CCER &= ~(1 << 1); //  falling edge
-				TIM1->DIER &= ~(1 << 1); // dis intrerrupt
-			 }
-      
-
-    }
-    if(hc[1].f)
-    {
-      hc[1].f = 0;
-      if(!hc[1].first_cap)
-			{
-				hc[1].val1 = TIM1->CCR2;
-				hc[1].first_cap = 1;
-				TIM1->CCER |= (1 << 2);
-			}
-			else
-			{
-				hc[1].val2 = TIM1->CCR2;
-				if(hc[1].val2 > hc[1].val1)
-				{
-					hc[1].diff = hc[1].val2 - hc[1].val1;
-
-				}
-				else{
-					hc[1].diff = 0xFFFF - hc[1].val1 + hc[1].val2;
-				}
-				if(hc[1].diff > 1400)
-				{
-					hc[1].d = 9999;
-				}
-				else{
-
-					hc[1].d = (u16)(hc[1].diff * 17 / 100);
-				}
-				hc[1].done = 1;
-				hc[1].first_cap = 0;
-				TIM1->CCER &= ~(1<<2);
-				TIM1->DIER &= ~(1<<2);
-			}
-
-    }
 
 	  float d = (ec_l.dist + ec_r.dist) * 0.5f;
 
@@ -243,9 +173,9 @@ int main(void)
 		{
 			g_sp_v = 0.15f;
 
-			if(d >= 1.0f)
+			if(d > 1.0f)
 			{
-				turn_start(-90.0f);
+				turn_start(90.0f);
 				state = 1;
 			}
 		}
@@ -261,11 +191,6 @@ int main(void)
 				state = 0;
 			}
 		}
-
-
-
-
-
 
   }
   /* USER CODE END 3 */
@@ -696,30 +621,30 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6|GPIO_PIN_7, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_10|GPIO_PIN_12, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PA6 */
-  GPIO_InitStruct.Pin = GPIO_PIN_6;
+  /*Configure GPIO pins : PA6 PA7 */
+  GPIO_InitStruct.Pin = GPIO_PIN_6|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PE10 PE12 */
+  GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_12;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PB12 */
   GPIO_InitStruct.Pin = GPIO_PIN_12;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : PD8 PD9 PD10 PD11 */
-  GPIO_InitStruct.Pin = GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_11;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 2, 0);

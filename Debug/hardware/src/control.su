@@ -13,3 +13,4 @@
 ../hardware/src/control.c:321:4:turn_done	4	static
 ../hardware/src/control.c:326:7:turn_final_yaw	4	static
 ../hardware/src/control.c:331:7:turn_residual	16	static
+../hardware/src/control.c:338:7:angle_diff	24	static

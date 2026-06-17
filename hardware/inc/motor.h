@@ -17,5 +17,6 @@ void motor_r_stop();
 void motor_l_stop();
 void motor_run(i16 left_pwm, i16 right_pwm);
 void motor_init(u8 psc, u16 arr);
+void motor_stop();
 
 #endif /* INC_MOTOR_H_ */

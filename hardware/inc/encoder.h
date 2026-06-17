@@ -10,7 +10,7 @@
 #define MYLIB_INC_ENCODER_H_
 #include "main.h"
 #include "types.h"
-#include "hc_sr04.h"
+
 /*
 typedef struct
 {

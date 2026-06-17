@@ -335,3 +335,9 @@ float turn_residual(void)
     while (r <= -180.0f) r += 360.0f;
     return r;
 }
+float angle_diff(float t,float c)
+{
+	float d=t-c;
+	if(d>180)d-=360;
+	if(d<-180)d+=360;
+	return d;}

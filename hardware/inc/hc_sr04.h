@@ -17,8 +17,9 @@ typedef struct
     _vo u32 diff;
     _vo u32 d;
     _vo u8 first_cap;
-    _vo u8 done;
-    _vo u8 f;
+     u8 done;
+     u8 busy;
+     u32 start_ms;
 
 }HC_t;
 

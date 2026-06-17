@@ -8,6 +8,7 @@
 #include "string.h"
 #include "math.h"
 #include <stdlib.h>
+i8 grid[MAP_H_G][MAP_W];
 void map_init()
 {
     memset(grid, 0, sizeof(grid));

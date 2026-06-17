@@ -102,5 +102,5 @@ void  turn_task(void);
 u8    turn_done(void);
 float turn_final_yaw(void);
 float turn_residual(void);
-
+float angle_diff(float t,float c);
 #endif /* INC_CONTROL_H_ */

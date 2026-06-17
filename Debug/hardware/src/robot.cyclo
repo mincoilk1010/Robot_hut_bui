@@ -1,0 +1,2 @@
+../hardware/src/robot.c:9:6:Robot_Init	1
+../hardware/src/robot.c:36:6:Robot_Loop	1
