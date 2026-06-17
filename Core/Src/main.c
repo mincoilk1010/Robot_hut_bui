@@ -30,6 +30,7 @@
 #include "motor.h"
 #include "types.h"
 #include "delay.h"
+#include "hc_sr04.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -149,7 +150,7 @@ int main(void)
   Kinematics_reset();
   mpu6050_Init();
   mpu6050_Calibrate();
-
+  hcsr04_init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -161,6 +162,79 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+    if(hc[0].f)
+    {
+      hc[0].f = 0;
+      			 if(!hc[0].first_cap)
+			 {
+				hc[0].val1 = TIM1->CCR1;
+				hc[0].first_cap = 1;
+				TIM1->CCER |= (1 << 1); // falling
+			 }
+			 else
+			 {
+				hc[0].val2 = TIM1->CCR1;
+				if(hc[0].val2 > hc[0].val1)
+				{
+					hc[0].diff = hc[0].val2 - hc[0].val1;
+				}else
+				{
+					hc[0].diff = 0xFFFF - hc[0].val1 + hc[0].val2;
+				}
+
+				if(hc[0].diff > 1400)
+				{
+					hc[0].d = 9999;
+				}
+				else{
+					// d = time * 0.17
+					// v am thanh = 343 m/s = 0.343 mm/us
+					hc[0].d = (u16)(hc[0].diff * 17 / 100);
+
+				}
+				hc[0].done = 1; // bao timer do xong
+				hc[0].first_cap = 0;
+				TIM1->CCER &= ~(1 << 1); //  falling edge
+				TIM1->DIER &= ~(1 << 1); // dis intrerrupt
+			 }
+      
+
+    }
+    if(hc[1].f)
+    {
+      hc[1].f = 0;
+      if(!hc[1].first_cap)
+			{
+				hc[1].val1 = TIM1->CCR2;
+				hc[1].first_cap = 1;
+				TIM1->CCER |= (1 << 2);
+			}
+			else
+			{
+				hc[1].val2 = TIM1->CCR2;
+				if(hc[1].val2 > hc[1].val1)
+				{
+					hc[1].diff = hc[1].val2 - hc[1].val1;
+
+				}
+				else{
+					hc[1].diff = 0xFFFF - hc[1].val1 + hc[1].val2;
+				}
+				if(hc[1].diff > 1400)
+				{
+					hc[1].d = 9999;
+				}
+				else{
+
+					hc[1].d = (u16)(hc[1].diff * 17 / 100);
+				}
+				hc[1].done = 1;
+				hc[1].first_cap = 0;
+				TIM1->CCER &= ~(1<<2);
+				TIM1->DIER &= ~(1<<2);
+			}
+
+    }
 
 	  float d = (ec_l.dist + ec_r.dist) * 0.5f;
 

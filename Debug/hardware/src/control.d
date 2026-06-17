@@ -34,6 +34,7 @@ hardware/src/control.o: ../hardware/src/control.c \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
  E:/STM32f4/doan_01/hardware/inc/encoder.h \
+ E:/STM32f4/doan_01/hardware/inc/hc_sr04.h \
  E:/STM32f4/doan_01/hardware/inc/mpu6050.h \
  E:/STM32f4/doan_01/hardware/inc/delay.h \
  E:/STM32f4/doan_01/hardware/inc/mpu6050.h
@@ -73,6 +74,7 @@ E:/STM32f4/doan_01/hardware/inc/motor.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h:
 E:/STM32f4/doan_01/hardware/inc/encoder.h:
+E:/STM32f4/doan_01/hardware/inc/hc_sr04.h:
 E:/STM32f4/doan_01/hardware/inc/mpu6050.h:
 E:/STM32f4/doan_01/hardware/inc/delay.h:
 E:/STM32f4/doan_01/hardware/inc/mpu6050.h:

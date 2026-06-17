@@ -10,7 +10,7 @@
 #define MYLIB_INC_ENCODER_H_
 #include "main.h"
 #include "types.h"
-
+#include "hc_sr04.h"
 /*
 typedef struct
 {
@@ -54,7 +54,7 @@ extern Encoder_data_t ec_r;
 extern volatile u32 g_ms ;
 extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim5;
-extern TIM_HandleTypeDef htim1;
+
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim);
 void encoder_init();
 

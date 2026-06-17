@@ -1,1 +1,2 @@
-../hardware/src/hc_sr04.c:14:6:hcsr04_read	16	static
+../hardware/src/hc_sr04.c:13:6:hcsr04_read	16	static
+../hardware/src/hc_sr04.c:32:6:hcsr04_init	8	static

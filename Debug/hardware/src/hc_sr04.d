@@ -31,6 +31,8 @@ hardware/src/hc_sr04.o: ../hardware/src/hc_sr04.c \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
  E:/STM32f4/doan_01/hardware/inc/types.h \
+ E:/STM32f4/doan_01/hardware/inc/encoder.h \
+ E:/STM32f4/doan_01/hardware/inc/hc_sr04.h \
  E:/STM32f4/doan_01/hardware/inc/delay.h
 E:/STM32f4/doan_01/hardware/inc/hc_sr04.h:
 ../Core/Inc/main.h:
@@ -65,4 +67,6 @@ E:/STM32f4/doan_01/hardware/inc/hc_sr04.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h:
 E:/STM32f4/doan_01/hardware/inc/types.h:
+E:/STM32f4/doan_01/hardware/inc/encoder.h:
+E:/STM32f4/doan_01/hardware/inc/hc_sr04.h:
 E:/STM32f4/doan_01/hardware/inc/delay.h:

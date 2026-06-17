@@ -8,8 +8,7 @@
 #include "hc_sr04.h"
 #include "delay.h"
 
-HC_t hc[4] = {0};
-
+HC_t hc[2] ={0};
 
 void hcsr04_read()
 {
@@ -29,4 +28,13 @@ void hcsr04_read()
 	//set Low
 	GPIOD->BSRR = (1 << 24) | (1 << 25) | (1 << 26) | (1 << 27);
 	
+}
+void hcsr04_init()
+{
+	hc[0].f=0;
+	hc[1].f=0;
+	hc[0].d=0;
+	hc[1].d=0;
+	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_1);
+	HAL_TIM_IC_Start_IT(&htim1, TIM_CHANNEL_2);
 }

@@ -9,7 +9,7 @@
 #define MYLIB_INC_HC_SR04_H_
 #include "main.h"
 #include "types.h"
-
+#include "encoder.h"
 typedef struct
 {
     _vo u32 val1;
@@ -18,13 +18,14 @@ typedef struct
     _vo u32 d;
     _vo u8 first_cap;
     _vo u8 done;
+    _vo u8 f;
 
 }HC_t;
 
-extern HC_t hc[4];
-
+extern HC_t hc[2];
+extern TIM_HandleTypeDef htim1; 
 void hcsr04_read();
-
+void hcsr04_init();
 
 
 #endif /* MYLIB_INC_HC_SR04_H_ */
