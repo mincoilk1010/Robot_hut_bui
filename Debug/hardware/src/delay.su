@@ -1,5 +1,1 @@
-../hardware/src/delay.c:40:6:delay_init	32	static
-../hardware/src/delay.c:125:6:delay_us	24	static
-../hardware/src/delay.c:195:6:delay_ms	16	static
-../hardware/src/delay.c:210:5:millis	8	static
-../hardware/src/delay.c:224:5:micros	16	static
+../hardware/src/delay.c:3:6:delay_us	24	static

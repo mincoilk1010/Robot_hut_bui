@@ -1,17 +1,10 @@
-/*
- * delay.h
- *
- *  Created on: Jun 8, 2026
- *      Author: GB Center
- */
+#ifndef DELAY_DELAY_H_
+#define DELAY_DELAY_H_
 
-#ifndef INC_DELAY_H_
-#define INC_DELAY_H_
-#include "types.h"
-void delay_init();
-void delay_ms(u32 mssec);
-void delay_us(u32 us);
-u32 millis(void);
-u32 micros(void);
+#include "stm32f4xx_hal.h"
+void delay_us(uint32_t us); 
 
-#endif /* INC_DELAY_H_ */
+#endif /* DELAY_DELAY_H_ */
+
+
+

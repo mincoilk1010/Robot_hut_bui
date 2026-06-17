@@ -29,11 +29,11 @@ void HeadingHold_Task(void)
     float speed_factor = 1.0f - fabsf(g_sp_v) / PH_MAX_V;
     if(speed_factor < 0.3f) speed_factor = 0.3f;
     if(fabsf(err) < DEG2RAD(10.0f)) speed_factor *= 0.6f;
-    float kp = 0.035f * speed_factor;
+    float kp = 0.04f * speed_factor;
     float kd = 0.0025f;
 
 
-    float kff = 0.02f;
+    float kff = 0.01f;
     float ff = kff * g_sp_v;
 
 
@@ -237,3 +237,101 @@ void motorcontrol_pid()
     }
 }
 
+
+Turn_t turn = {0};
+
+#define TURN_TIMEOUT_MS     2000u
+#define TURN_SETTLE_MS      50u
+
+void turn_start(float delta_deg)
+{
+
+    while (delta_deg >  180.0f) delta_deg -= 360.0f;
+    while (delta_deg <= -180.0f) delta_deg += 360.0f;
+
+    turn.yaw_t    = yaw + delta_deg;
+    while(turn.yaw_t > 180.0f) turn.yaw_t -= 360.0f;
+
+    while(turn.yaw_t <= -180.0f)turn.yaw_t += 360.0f;
+    turn.err      = delta_deg;
+    turn.err_old  = delta_deg;
+    turn.dir      = (delta_deg >= 0.0f) ? 1 : -1;
+    turn.done     = 0;
+    turn.timeout  = 0;
+    turn.t0       = HAL_GetTick();
+    turn.t_settle = 0;
+    turn.state    = TR_RUN;
+
+    g_sp_v = 0.0f;
+}
+
+void turn_task(void)
+{
+    if (turn.state == TR_IDLE || turn.state == TR_DONE || turn.state == TR_TOUT)
+        return;
+
+    if ((u32)(HAL_GetTick() - turn.t0) > TURN_TIMEOUT_MS)
+    {
+        g_sp_v = 0.0f; g_sp_w = 0.0f;
+        turn.state   = TR_TOUT;
+        turn.done    = 1;
+        turn.timeout = 1;
+        return;
+    }
+
+    float err = turn.yaw_t - yaw;
+    while (err >  180.0f) err -= 360.0f;
+    while (err <= -180.0f) err += 360.0f;
+    turn.err = err;
+    float d_err = (err - turn.err_old) / dt_s;
+    turn.err_old = err;
+    float w = TR_KP * err + TR_KD * d_err;
+
+    float w_abs = ABS_F(w);
+    if (w_abs < TR_W_MIN && w_abs > 0.001f)
+        w = (w > 0.0f) ? TR_W_MIN : -TR_W_MIN;
+    if (w_abs > TR_W_MAX)
+        w = (w > 0.0f) ? TR_W_MAX : -TR_W_MAX;
+    turn.w_cmd = w;
+
+    if (ABS_F(err) < TR_DONE_DEG)
+    {
+        if (turn.state != TR_SETTLE)
+        {
+            turn.state    = TR_SETTLE;
+            turn.t_settle = HAL_GetTick();
+        }
+
+        g_sp_w = 0.0f;
+
+        if ((u32)(HAL_GetTick() - turn.t_settle) >= TURN_SETTLE_MS)
+        {
+            turn.yaw_final = yaw;
+            g_sp_v = 0.0f; g_sp_w = 0.0f;
+            turn.state = TR_DONE;
+            turn.done  = 1;
+        }
+        return;
+    }
+    turn.state = TR_RUN;
+    g_sp_v = 0.0f;
+    g_sp_w = w;
+}
+ 
+u8 turn_done(void)
+{
+    return turn.done;
+}
+
+float turn_final_yaw(void)
+{
+    return turn.yaw_final;
+}
+
+float turn_residual(void)
+{
+    float r = turn.yaw_t - turn.yaw_final;
+    while (r >  180.0f) r -= 360.0f;
+    while (r <= -180.0f) r += 360.0f;
+    return r;
+}

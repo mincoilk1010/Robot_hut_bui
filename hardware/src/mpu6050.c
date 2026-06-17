@@ -114,8 +114,6 @@ float mpu6050_angleDiff(float target, float current)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-
-
     if(GPIO_Pin == MPU6050_PIN_INT)
     {
         float dt = 0.01f; // Chu kỳ 10ms chuẩn xác từ phần cứng MPU
@@ -136,10 +134,32 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         	d_r = ec_r.dist;
 
         	Kinematics_update(dl, dr);
-        	PH_task();
 
-        	HeadingHold_Task();
+    		if(ec_l.active && ((HAL_GetTick() - ec_l.tick) > 100))
+    		{
+    			ec_l.vel = 0;
+    			ec_l.rpm = 0;
+    			ec_l.active = 0;
+    		}
+    		if(ec_r.active && ((HAL_GetTick() - ec_r.tick) > 100))
+    		{
+    			ec_r.vel = 0;
+    			ec_r.rpm = 0;
+    			ec_r.active = 0;
+    		}
 
+
+    		if (turn.state == TR_IDLE || turn.state == TR_DONE || turn.state == TR_TOUT)
+    		{
+    		    HeadingHold_Task();
+    		}
+    		else
+    		{
+    		    turn_task();
+    		}
+
+    		 //HeadingHold_Task();
+    		//turn_task();
         	motorcontrol_pid();
         }
 

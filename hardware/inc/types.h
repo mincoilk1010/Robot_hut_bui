@@ -18,7 +18,7 @@ typedef uint32_t u32;
 typedef int8_t i8;
 typedef int16_t i16;
 typedef int32_t i32;
-#define WHEEL_DIAMETER_M    0.065f          /* đường kính bánh */
+#define WHEEL_DIAMETER_M    0.066f          /* đường kính bánh */
 #define WHEEL_RADIUS_M      (WHEEL_DIAMETER_M * 0.5f)
 #define WHEEL_BASE_M        0.15f          /* khoảng cách 2 bánh */
 #define ENCODER_PPR         20              /* xung/vòng (1 kênh) */
@@ -29,10 +29,10 @@ typedef int32_t i32;
 #define dt_ms               20u
 
 
-#define KP_r 1330.0f
+#define KP_r 1250.0f
 #define KI_r 450.0f
 #define KD_r 0.03f
-#define KP_l 1430.0f
+#define KP_l 1250.0f
 #define KI_l 450.0f
 #define KD_l 0.03f
 #define pid_int_min       -999.0f

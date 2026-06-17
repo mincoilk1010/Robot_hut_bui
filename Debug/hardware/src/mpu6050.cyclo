@@ -3,4 +3,4 @@
 ../hardware/src/mpu6050.c:71:6:mpu6050_readGyroZ	1
 ../hardware/src/mpu6050.c:84:6:mpu6050_processYaw	5
 ../hardware/src/mpu6050.c:107:7:mpu6050_angleDiff	3
-../hardware/src/mpu6050.c:115:6:HAL_GPIO_EXTI_Callback	3
+../hardware/src/mpu6050.c:115:6:HAL_GPIO_EXTI_Callback	10

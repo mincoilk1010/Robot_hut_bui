@@ -66,4 +66,41 @@ void Kinematics_obs_pos(float dist_m, float servo_deg,  float *obs_x, float *obs
 
 void Kinematics_reset(void);
 
+
+
+#define TR_KP         0.06f
+#define TR_KD         0.008f
+#define TR_W_MAX      2.0f
+#define TR_W_MIN      0.12f
+#define TR_SLOW_DEG   18.0f
+#define TR_DONE_DEG   1.5f
+typedef enum
+{
+    TR_IDLE,
+    TR_ACCEL,
+    TR_RUN,
+    TR_SETTLE,
+    TR_STOP,
+    TR_DONE,
+    TR_TOUT
+}TrSt_t;
+ 
+typedef struct {
+    TrSt_t state;
+    float  yaw_t;      
+    float  err;       
+    float  err_old;
+    float  yaw_final;   
+    float  w_cmd;      
+    int8_t dir;         
+    uint32_t t0, t_settle;
+    uint8_t  done, timeout;
+} Turn_t;
+extern Turn_t turn;
+void  turn_start(float delta_deg);
+void  turn_task(void);
+u8    turn_done(void);
+float turn_final_yaw(void);
+float turn_residual(void);
+
 #endif /* INC_CONTROL_H_ */
