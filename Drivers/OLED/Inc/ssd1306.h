@@ -22,8 +22,7 @@ extern "C" {
 #include "stm32wbxx_hal.h"
 #elif defined(STM32F0)
 #include "stm32f0xx_hal.h"
-#elif defined(STM32F1)
-#include "stm32f1xx_hal.h"
+#include "stm32f4xx_hal.h"
 #elif defined(STM32F4)
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_gpio.h"
