@@ -1,2 +1,0 @@
-../hardware/src/Servo.c:6:6:Servo_Init	16	static
-../hardware/src/Servo.c:12:6:Servo_WriteAngle	24	static

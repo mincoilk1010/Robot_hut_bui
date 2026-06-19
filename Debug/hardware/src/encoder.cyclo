@@ -1,2 +1,0 @@
-../hardware/src/encoder.c:15:6:HAL_TIM_IC_CaptureCallback	22
-../hardware/src/encoder.c:170:6:encoder_init	1

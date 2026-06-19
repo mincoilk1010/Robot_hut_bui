@@ -1,6 +1,6 @@
 ################################################################################
 # Automatically-generated file. Do not edit!
-# Toolchain: GNU Tools for STM32 (13.3.rel1)
+# Toolchain: GNU Tools for STM32 (14.3.rel1)
 ################################################################################
 
 ELF_SRCS := 
@@ -26,6 +26,8 @@ OBJCOPY_BIN :=
 SUBDIRS := \
 Core/Src \
 Core/Startup \
+Drivers/OLED/Src \
 Drivers/STM32F4xx_HAL_Driver/Src \
+Drivers/VL53L0X/Src \
 hardware/src \
 

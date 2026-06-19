@@ -1,3 +1,0 @@
-../hardware/src/pid.c:14:6:PID_Init	1
-../hardware/src/pid.c:33:6:PID_Reset	1
-../hardware/src/pid.c:43:7:PID_Update	7

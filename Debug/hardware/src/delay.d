@@ -1,5 +1,5 @@
 hardware/src/delay.o: ../hardware/src/delay.c \
- E:/STM32f4/doan_01/hardware/inc/delay.h \
+ D:/feature-hardware/Robot_hut_bui/hardware/inc/delay.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h \
  ../Core/Inc/stm32f4xx_hal_conf.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h \
@@ -30,7 +30,7 @@ hardware/src/delay.o: ../hardware/src/delay.c \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
-E:/STM32f4/doan_01/hardware/inc/delay.h:
+D:/feature-hardware/Robot_hut_bui/hardware/inc/delay.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h:

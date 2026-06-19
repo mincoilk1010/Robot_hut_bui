@@ -24,6 +24,12 @@
 #include "robot.h"
 #include "string.h"
 #include "stdio.h"
+#include "VL53L0X.h"
+#include "ssd1306.h"
+#include "ssd1306_fonts.h"
+#include "Servo.h"
+#include "math.h"
+#include "navigation.h"
 
 /* USER CODE END Includes */
 
@@ -161,12 +167,12 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	 // Robot_Loop();
-	  u16 d = readRangeSingleMillimeters(&stat);
-	  sprintf( uart_buf,"D = %d mm\r\n",d);
+//	  u16 d = readRangeSingleMillimeters(&stat);
+//	  sprintf( uart_buf,"D = %d mm\r\n",d);
+//
+//	  HAL_UART_Transmit(&huart1,(uint8_t*)uart_buf,strlen(uart_buf),100);
+//	  HAL_Delay(600);
 
-	  HAL_UART_Transmit(&huart1,(uint8_t*)uart_buf,strlen(uart_buf),100);
-	  HAL_Delay(600);
-/*
 	  float d = (ec_l.dist + ec_r.dist) * 0.5f;
 
 	     if(state == 0)
@@ -193,7 +199,7 @@ int main(void)
 		}
 
 	     Debug_Print1();
-	     */
+
 
   }
   /* USER CODE END 3 */
