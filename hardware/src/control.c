@@ -196,7 +196,7 @@ void motorcontrol_pid()
         }
     }
     /* Right */
-    if(fabs(sr) < 0.00001f){
+    if(fabs(sr) < 0.0001f){
         PID_Reset(&pid_r);
         TIM4->CCR3=0;
         TIM4->CCR4=0;
@@ -240,9 +240,8 @@ void motorcontrol_pid()
 
 Turn_t turn = {0};
 
-#define TURN_TIMEOUT_MS     2000u
-#define TURN_SETTLE_MS      50u
 
+/*
 void turn_start(float delta_deg)
 {
 
@@ -335,6 +334,147 @@ float turn_residual(void)
     while (r <= -180.0f) r += 360.0f;
     return r;
 }
+    */
+     
+static float _norm(float a)
+{ while(a>180.0f)a-=360.0f; while(a<=-180.0f)a+=360.0f; return a; }
+ 
+void turn_start(float delta_deg)
+{
+    delta_deg = _norm(delta_deg);
+ 
+    turn.yaw_t    = _norm(yaw + delta_deg);
+    turn.err      = delta_deg;
+    turn.err_old  = delta_deg;
+    turn.dir      = (delta_deg >= 0.0f) ? 1 : -1;
+    turn.w_cmd    = 0.0f;       /* bắt đầu từ 0 — ACCEL sẽ ramp lên */
+    turn.done     = 0;
+    turn.timeout  = 0;
+    turn.t0       = HAL_GetTick();
+    turn.t_settle = 0;
+    turn.state    = TR_ACCEL;  /* ★ bắt đầu bằng tăng tốc êm, không nhảy thẳng RUN */
+ 
+    g_sp_v = 0.0f;
+    g_sp_w = 0.0f;
+}
+ 
+/* ════════════════════════════════════════════════════════════════
+ * turn_task() — 5 state đầy đủ, chạy mỗi 10ms (100Hz)
+ *
+ *   ACCEL  : ramp ω từ 0 lên hướng quay trong TR_ACCEL_MS (hoặc
+ *            tới khi |err| < TR_SLOW_DEG) — tránh giật/trượt bánh
+ *            lúc bắt đầu, giúp encoder bám đúng góc thật hơn.
+ *
+ *   RUN    : PD controller. ★ decel zone: khi |err| < TR_SLOW_DEG,
+ *            scale ω xuống tuyến tính theo |err|/TR_SLOW_DEG (đây
+ *            là TR_SLOW_DEG mà bản cũ khai báo nhưng chưa hề dùng).
+ *
+ *   SETTLE : |err| < TR_DONE_DEG → cắt ω=0, giữ đủ TR_SETTLE_MS
+ *            liên tục (nếu lệch ra lại → quay về RUN).
+ *
+ *   STOP   : ω đã = 0 từ SETTLE, đợi thêm TR_STOP_MS để bánh thật
+ *            sự dừng hẳn (hết trớn cơ khí) rồi mới chốt yaw_final
+ *            → góc đọc được CHÍNH XÁC góc thật xe đang đứng, không
+ *            phải góc lúc còn đang trôi theo đà.
+ *
+ *   DONE   : hoàn tất, turn_residual() cho biết sai số còn lại.
+ * ════════════════════════════════════════════════════════════════ */
+void turn_task(void)    
+{
+    if (turn.state==TR_IDLE || turn.state==TR_DONE || turn.state==TR_TOUT)
+        return;
+ 
+    u32 now = HAL_GetTick();
+    if ((u32)(now - turn.t0) > TURN_TIMEOUT_MS) {
+        g_sp_v=0; g_sp_w=0;
+        turn.state=TR_TOUT; turn.done=1; turn.timeout=1;
+        return;
+    }
+ 
+    float err = _norm(turn.yaw_t - yaw);
+    float d_err = (err - turn.err_old) / dt_s;
+    turn.err_old = err;
+    turn.err = err;
+ 
+    switch (turn.state) {
+ 
+    case TR_ACCEL: {
+        float target = (float)turn.dir * TR_W_MAX;
+        /* Bước tăng mỗi chu kỳ để đạt W_MAX trong TR_ACCEL_MS */
+        float step = TR_W_MAX * dt_s / (TR_ACCEL_MS / 1000.0f);
+        float dw = target - turn.w_cmd;
+        if (dw >  step) dw =  step;
+        if (dw < -step) dw = -step;
+        turn.w_cmd += dw;
+        g_sp_v = 0.0f;
+        g_sp_w = turn.w_cmd;
+ 
+        if ((now - turn.t0) >= TR_ACCEL_MS || ABS_F(err) < TR_SLOW_DEG)
+            turn.state = TR_RUN;
+        break;
+    }
+ 
+    case TR_RUN: {
+        float w = TR_KP*err + TR_KD*d_err;
+ 
+        /* ★ Decel zone: scale êm khi gần đích — đây là phần code cũ
+         *   khai báo TR_SLOW_DEG nhưng KHÔNG hề dùng tới */
+        if (ABS_F(err) < TR_SLOW_DEG) {
+            float scale = ABS_F(err) / TR_SLOW_DEG;
+            float floor_scale = TR_W_MIN / TR_W_MAX;
+            if (scale < floor_scale) scale = floor_scale;
+            w *= scale;
+        }
+ 
+        float w_abs = ABS_F(w);
+        if (w_abs > TR_W_MAX) w = (w>0)?TR_W_MAX:-TR_W_MAX;
+        if (w_abs < TR_W_MIN && w_abs > 0.001f) w = (w>0)?TR_W_MIN:-TR_W_MIN;
+ 
+        turn.w_cmd = w;
+        g_sp_v = 0.0f;
+        g_sp_w = w;
+ 
+        if (ABS_F(err) < TR_DONE_DEG) {
+            turn.t_settle = now;
+            turn.state = TR_SETTLE;
+        }
+        break;
+    }
+ 
+    case TR_SETTLE:
+        g_sp_v = 0.0f;
+        g_sp_w = 0.0f;
+        turn.w_cmd = 0.0f;
+ 
+        /* Lệch ra khỏi ngưỡng trong lúc settle → quay lại RUN */
+        if (ABS_F(err) > TR_DONE_DEG * 2.0f) {
+            turn.state = TR_RUN;
+            break;
+        }
+        if ((now - turn.t_settle) >= TR_SETTLE_MS) {
+            turn.t_settle = now;   /* tái dùng làm mốc thời gian cho STOP */
+            turn.state = TR_STOP;
+        }
+        break;
+ 
+    case TR_STOP:
+        g_sp_v = 0.0f;
+        g_sp_w = 0.0f;
+        if ((now - turn.t_settle) >= TR_STOP_MS) {
+            turn.yaw_final = yaw;   /* ★ chốt SAU khi đã dừng hẳn */
+            g_sp_v = 0.0f; g_sp_w = 0.0f;
+            turn.state = TR_DONE;
+            turn.done  = 1;
+        }
+        break;
+ 
+    default: break;
+    }
+}
+ 
+u8    turn_done(void)      { return turn.done; }
+float turn_final_yaw(void) { return turn.yaw_final; }
+float turn_residual(void)  { return _norm(turn.yaw_t - turn.yaw_final); }
 float angle_diff(float t,float c)
 {
 	float d=t-c;

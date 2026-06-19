@@ -8,9 +8,10 @@
 ../hardware/src/control.c:147:6:Kinematics_reset	40	static
 ../hardware/src/control.c:152:6:pid_setup	8	static
 ../hardware/src/control.c:158:6:motorcontrol_pid	16	static
-../hardware/src/control.c:246:6:turn_start	16	static
-../hardware/src/control.c:268:6:turn_task	24	static
-../hardware/src/control.c:321:4:turn_done	4	static
-../hardware/src/control.c:326:7:turn_final_yaw	4	static
-../hardware/src/control.c:331:7:turn_residual	16	static
-../hardware/src/control.c:338:7:angle_diff	24	static
+../hardware/src/control.c:339:14:_norm	16	static
+../hardware/src/control.c:342:6:turn_start	16	static
+../hardware/src/control.c:382:6:turn_task	48	static
+../hardware/src/control.c:475:7:turn_done	4	static
+../hardware/src/control.c:476:7:turn_final_yaw	4	static
+../hardware/src/control.c:477:7:turn_residual	8	static
+../hardware/src/control.c:478:7:angle_diff	24	static

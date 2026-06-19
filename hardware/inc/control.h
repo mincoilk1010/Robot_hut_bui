@@ -50,6 +50,7 @@ extern _vo float g_sp_v,g_sp_w;
 extern i16 p_l ,p_r ;
 extern float sr ,sl ;
 extern _vo u8  Flag ;
+extern f32 prev_dist_l, prev_dist_r ;
 extern float heading_target;
 void HeadingHold_Task(void);
 void PH_activate();
@@ -68,12 +69,16 @@ void Kinematics_reset(void);
 
 
 
-#define TR_KP         0.06f
-#define TR_KD         0.008f
-#define TR_W_MAX      2.0f
+#define TR_KP         0.0367f
+#define TR_KD         0.004f
+#define TR_W_MAX      2.5f
 #define TR_W_MIN      0.12f
 #define TR_SLOW_DEG   18.0f
 #define TR_DONE_DEG   1.5f
+#define TR_ACCEL_MS   80u
+#define TR_SETTLE_MS  50u
+#define TR_STOP_MS    40u
+#define TURN_TIMEOUT_MS 2500u
 typedef enum
 {
     TR_IDLE,

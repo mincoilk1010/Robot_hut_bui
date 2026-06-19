@@ -1,6 +1,7 @@
-../hardware/src/mpu6050.c:21:6:mpu6050_Init	2
-../hardware/src/mpu6050.c:53:6:mpu6050_Calibrate	2
-../hardware/src/mpu6050.c:74:6:mpu6050_readGyroZ	1
-../hardware/src/mpu6050.c:87:6:mpu6050_processYaw	5
-../hardware/src/mpu6050.c:110:7:mpu6050_angleDiff	3
-../hardware/src/mpu6050.c:118:6:HAL_GPIO_EXTI_Callback	10
+../hardware/src/mpu6050.c:32:13:_bias_retrack	10
+../hardware/src/mpu6050.c:41:6:mpu6050_Init	2
+../hardware/src/mpu6050.c:73:6:mpu6050_Calibrate	6
+../hardware/src/mpu6050.c:122:6:mpu6050_readGyroZ	1
+../hardware/src/mpu6050.c:135:6:mpu6050_processYaw	5
+../hardware/src/mpu6050.c:159:7:mpu6050_angleDiff	3
+../hardware/src/mpu6050.c:167:6:HAL_GPIO_EXTI_Callback	7

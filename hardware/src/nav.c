@@ -145,8 +145,8 @@ void nav_task(void)
     case N_DONE:
         g_sp_v=0;g_sp_w=0;nav.done=1;
         PH_activate();
-        /* LED D13 nháy báo xong */
-        HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_7);
+
+
         break;
     }
 }

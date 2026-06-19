@@ -29,6 +29,7 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
+ E:/STM32f4/doan_01/hardware/inc/robot.h \
  E:/STM32f4/doan_01/hardware/inc/control.h \
  E:/STM32f4/doan_01/hardware/inc/types.h \
  E:/STM32f4/doan_01/hardware/inc/pid.h \
@@ -36,11 +37,11 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  E:/STM32f4/doan_01/hardware/inc/encoder.h \
  E:/STM32f4/doan_01/hardware/inc/mpu6050.h \
  E:/STM32f4/doan_01/hardware/inc/delay.h \
- E:/STM32f4/doan_01/hardware/inc/mpu6050.h \
- E:/STM32f4/doan_01/hardware/inc/delay.h \
- E:/STM32f4/doan_01/hardware/inc/encoder.h \
- E:/STM32f4/doan_01/hardware/inc/motor.h \
- E:/STM32f4/doan_01/hardware/inc/types.h \
+ E:/STM32f4/doan_01/hardware/inc/VL53L0X.h \
+ E:/STM32f4/doan_01/hardware/inc/nav.h \
+ E:/STM32f4/doan_01/hardware/inc/map.h \
+ E:/STM32f4/doan_01/hardware/inc/vl53_scan.h \
+ E:/STM32f4/doan_01/hardware/inc/avoid.h \
  E:/STM32f4/doan_01/hardware/inc/hc_sr04.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
@@ -73,6 +74,7 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h:
+E:/STM32f4/doan_01/hardware/inc/robot.h:
 E:/STM32f4/doan_01/hardware/inc/control.h:
 E:/STM32f4/doan_01/hardware/inc/types.h:
 E:/STM32f4/doan_01/hardware/inc/pid.h:
@@ -80,9 +82,9 @@ E:/STM32f4/doan_01/hardware/inc/motor.h:
 E:/STM32f4/doan_01/hardware/inc/encoder.h:
 E:/STM32f4/doan_01/hardware/inc/mpu6050.h:
 E:/STM32f4/doan_01/hardware/inc/delay.h:
-E:/STM32f4/doan_01/hardware/inc/mpu6050.h:
-E:/STM32f4/doan_01/hardware/inc/delay.h:
-E:/STM32f4/doan_01/hardware/inc/encoder.h:
-E:/STM32f4/doan_01/hardware/inc/motor.h:
-E:/STM32f4/doan_01/hardware/inc/types.h:
+E:/STM32f4/doan_01/hardware/inc/VL53L0X.h:
+E:/STM32f4/doan_01/hardware/inc/nav.h:
+E:/STM32f4/doan_01/hardware/inc/map.h:
+E:/STM32f4/doan_01/hardware/inc/vl53_scan.h:
+E:/STM32f4/doan_01/hardware/inc/avoid.h:
 E:/STM32f4/doan_01/hardware/inc/hc_sr04.h:

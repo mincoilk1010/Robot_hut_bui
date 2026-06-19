@@ -10,13 +10,17 @@
 
 #define      MPU6050_INT_PORT    GPIOB
 #define      MPU6050_PIN_INT     GPIO_PIN_12
-extern I2C_HandleTypeDef hi2c2;
+extern I2C_HandleTypeDef hi2c1;
 
 // khai bao extern de main.c co the doc dc debug truc tiep
 extern volatile float yaw;
+extern float GZ;           
+extern float GZ_std;     
 //Cac data ma mpu doc duoc
 extern float GZ_calib;
 // Funtion xu ly
+
+
 void mpu6050_Init(void);
 void mpu6050_Calibrate(void);
 void mpu6050_readGyroZ(void); // Chi doc truc Z

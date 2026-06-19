@@ -15,7 +15,7 @@ Scanner_t sc={0};
  
 static void _svo(u8 deg)
 {
-    extern TIM_HandleTypeDef htim3;
+
     if(deg>180u)deg=180u;
     __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1,500u+(u32)deg*2000u/180u);
 }

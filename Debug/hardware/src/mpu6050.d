@@ -37,7 +37,8 @@ hardware/src/mpu6050.o: ../hardware/src/mpu6050.c \
  E:/STM32f4/doan_01/hardware/inc/encoder.h \
  E:/STM32f4/doan_01/hardware/inc/mpu6050.h \
  E:/STM32f4/doan_01/hardware/inc/delay.h \
- E:/STM32f4/doan_01/hardware/inc/types.h
+ E:/STM32f4/doan_01/hardware/inc/types.h \
+ E:/STM32f4/doan_01/hardware/inc/nav.h
 E:/STM32f4/doan_01/hardware/inc/mpu6050.h:
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
@@ -78,3 +79,4 @@ E:/STM32f4/doan_01/hardware/inc/encoder.h:
 E:/STM32f4/doan_01/hardware/inc/mpu6050.h:
 E:/STM32f4/doan_01/hardware/inc/delay.h:
 E:/STM32f4/doan_01/hardware/inc/types.h:
+E:/STM32f4/doan_01/hardware/inc/nav.h:

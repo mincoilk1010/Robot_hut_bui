@@ -9,49 +9,70 @@
 #include "mpu6050.h"
 #include "control.h"
 #include "types.h"
-
+#include "nav.h"
 //Goi cau hinh i2c tu main.c
 
 
 int16_t gz = 0;
 float GZ = 0.0f;
 float GZ_calib = 0.0f;
+float   GZ_raw     = 0.0f;     /* gyro Z thô (chưa lọc) */
+float   GZ_std     = 0.05f;    /* độ lệch chuẩn, fallback nếu calib chưa chạy */
+float   GZ_deadzone= 0.05f;    /* dead-zone thích nghi, tính sau calibrate */
+
 volatile float yaw = 0.0f;
+#define GZ_LPF_ALPHA   0.35f
+
+/* ── Bias re-tracking khi xe ĐỨNG YÊN — chống trôi góc dài hạn ──
+ * τ rất lớn (factor nhỏ) → bias chỉ trôi theo VÀI CHỤC GIÂY, không
+ * ảnh hưởng lúc đang di chuyển, chỉ âm thầm bù khi MPU nóng dần
+ * lên làm offset gyro lệch nhẹ so với lúc mới calibrate.         */
+#define BIAS_TRACK_RATE   0.0008f
 _vo u8 Flag = 0;
+static void _bias_retrack(void)
+{
+    u8 stationary = (ABS_F(ec_l.vel) < 0.01f) && (ABS_F(ec_r.vel) < 0.01f);
+    if (!stationary) return;
+    if (ABS_F(GZ - GZ_calib) > 2.0f*GZ_deadzone) return;
+
+    GZ_calib += (GZ - GZ_calib) * BIAS_TRACK_RATE;
+}
+
 void mpu6050_Init(void)
 {
     uint8_t check, mData;
 
     HAL_Delay(100);  // Chờ MPU ổn định
 
-    HAL_I2C_Mem_Read(&hi2c2, MPU6050_ADDR, 0x75, 1, &check, 1, 10);
+    HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, 0x75, 1, &check, 1, 10);
     if (check != 0x68) return;
 
     // Wake up, dùng PLL từ Gyro-X để có clock ổn định
     mData = 0x01;
-    HAL_I2C_Mem_Write(&hi2c2, MPU6050_ADDR, 0x6B, 1, &mData, 1, 10);
+    HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, 0x6B, 1, &mData, 1, 10);
     HAL_Delay(10);
 
     // SMPLRT_DIV = 9 -> Sample Rate = 1kHz / (1 + 9) = 100Hz (Chu kỳ ngắt 10ms)
     mData = 0x09;
-    HAL_I2C_Mem_Write(&hi2c2, MPU6050_ADDR, 0x19, 1, &mData, 1, 10);
+    HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, 0x19, 1, &mData, 1, 10);
 
     // DLPF bandwidth ~44Hz - Lọc nhiễu rung động cơ bám sàn
     mData = 0x03;
-    HAL_I2C_Mem_Write(&hi2c2, MPU6050_ADDR, 0x1A, 1, &mData, 1, 10);
+    HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, 0x1A, 1, &mData, 1, 10);
 
     // Gyro FS = ±250°/s -> Sensitivity 131 LSB/(°/s) - Độ phân giải cao nhất cho robot xoay
     mData = 0x00;
-    HAL_I2C_Mem_Write(&hi2c2, MPU6050_ADDR, 0x1B, 1, &mData, 1, 10);
+    HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, 0x1B, 1, &mData, 1, 10);
 
     // Bật ngắt Data Ready (Thanh ghi 0x38), sửa timeout thành 10 như đã fix
     mData = 0x01;
-    HAL_I2C_Mem_Write(&hi2c2, MPU6050_ADDR, 0x38, 1, &mData, 1, 10);
+    HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, 0x38, 1, &mData, 1, 10);
 }
 
 // Ham hieu chuan: goi ham nay khi vua bat nguon
 void mpu6050_Calibrate(void)
 {
+    /*
 
     long sumGZ = 0;
     // doc 2000 lan de lay gia tri trung binh sai so tinh
@@ -66,6 +87,33 @@ void mpu6050_Calibrate(void)
     GZ_calib = (float)(sumGZ / 2000.0f) / 131.0f;
 		// Reset yaw ve 0 sau khi calibrate
     yaw = 0.0f;
+    */
+    long  sum  = 0;
+    double sumsq = 0.0;
+    uint8_t b[2];
+ 
+    for (int i = 0; i < 2000; i++) {
+        HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, 0x47, 1, b, 2, 10);
+        int16_t raw = (int16_t)((b[0]<<8)|b[1]);
+        sum   += raw;
+        sumsq += (double)raw * (double)raw;
+        HAL_Delay(1);
+    }
+ 
+    float mean_raw = (float)sum / 2000.0f;
+    GZ_calib = mean_raw / 131.0f;
+ 
+    double var_raw = (sumsq/2000.0) - (double)mean_raw*(double)mean_raw;
+    if (var_raw < 0.0) var_raw = 0.0;
+    GZ_std = (float)(sqrt(var_raw) / 131.0);
+    if (GZ_std < 0.015f) GZ_std = 0.015f;  /* sàn an toàn, tránh =0 */
+ 
+
+    GZ_deadzone = limit(3.0f * GZ_std, 0.02f, 0.15f);
+ 
+    yaw = 0.0f;
+    GZ_raw = 0.0f;
+    GZ     = 0.0f;
 
 }
 
@@ -75,7 +123,7 @@ void mpu6050_readGyroZ(void)
 {
     uint8_t gy_data[2];
     // Địa chỉ thanh ghi dữ liệu Trục Z của Gyro là 0x47
-    HAL_I2C_Mem_Read(&hi2c2, MPU6050_ADDR, 0x47, 1, gy_data, 2, 10);
+    HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, 0x47, 1, gy_data, 2, 10);
 
     gz = (int16_t)(gy_data[0] << 8 | gy_data[1]);
     GZ = (float)gz / 131.0f;
@@ -100,6 +148,7 @@ void mpu6050_processYaw(float dt)
     // Chuẩn hóa góc về khoảng [-180, 180] độ phục vụ thuật toán di chuyển
     if (yaw >  180.0f) yaw -= 360.0f;
     if (yaw < -180.0f) yaw += 360.0f;
+    _bias_retrack();
 }
 
 /* ---------------------------------------------------------------
@@ -120,7 +169,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     if(GPIO_Pin == MPU6050_PIN_INT)
     {
         float dt = 0.01f; // Chu kỳ 10ms chuẩn xác từ phần cứng MPU
-
         mpu6050_readGyroZ();   // Chỉ đọc 2 byte trục Z qua I2C (Cực nhanh)
         mpu6050_processYaw(dt); // Cộng dồn góc xoay
         Flag++;
@@ -138,13 +186,13 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
         	Kinematics_update(dl, dr);
 
-    		if(ec_l.active && ((HAL_GetTick() - ec_l.tick) > 100))
+    		if(ec_l.active && ((HAL_GetTick() - ec_l.tick) > 200))
     		{
     			ec_l.vel = 0;
     			ec_l.rpm = 0;
     			ec_l.active = 0;
     		}
-    		if(ec_r.active && ((HAL_GetTick() - ec_r.tick) > 100))
+    		if(ec_r.active && ((HAL_GetTick() - ec_r.tick) > 200))
     		{
     			ec_r.vel = 0;
     			ec_r.rpm = 0;
@@ -152,17 +200,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     		}
 
 
-    		if (turn.state == TR_IDLE || turn.state == TR_DONE || turn.state == TR_TOUT)
-    		{
-    		    HeadingHold_Task();
-    		}
-    		else
-    		{
-    		    turn_task();
-    		}
+    		  nav_task();
 
     		 //HeadingHold_Task();
     		//turn_task();
+            PH_task();
         	motorcontrol_pid();
         }
 
