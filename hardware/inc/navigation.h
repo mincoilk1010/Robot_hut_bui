@@ -29,7 +29,8 @@ typedef enum {
 uint16_t Lidar_GetDist(void);
 
 //Phan di chuyen
-void Nav_Motor_Forward(void); //Chay tien
+void Nav_Motor_Forward(void ); //Chay tien
+void Nav_Motor_Reverse(void ); //Chay lui
 void Nav_Motor_Stop(void);  //Phanh
 void Nav_MPU_Turn(int angle); //Quay xe
 void Nav_Encoder_Reset(void); //Reset encoder ve 0

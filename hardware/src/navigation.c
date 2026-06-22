@@ -12,12 +12,15 @@ uint16_t Lidar_GetDist() {
     return current_distance;
 }
 
-//PHAN DI CHUYEN (AE DIEN VAO DAY NHE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!)
-void Nav_Motor_Forward(void) { /* Bật cầu H chạy thẳng */ }
-void Nav_Motor_Stop(void)    { /* Phanh động cơ */ }
-void Nav_MPU_Turn(int angle) { /* Xoay xe theo PID & MPU6050 (+90 / -90) */ }
-void Nav_Encoder_Reset(void) { /* Xóa biến đếm số vòng bánh xe */ }
-float Nav_Encoder_Get_Dist(void) { return 0.0f; /* Trả về số mét tịnh tiến */ }
+//=====================================================DI CHUYEN===============================================================
+
+//=============================================================================================================================
+void Nav_Motor_Forward(void ); //Chay tien
+void Nav_Motor_Reverse(void ); //Chay lui
+void Nav_Motor_Stop(void);  //Phanh
+void Nav_MPU_Turn(int angle); //Quay xe
+void Nav_Encoder_Reset(void); //Reset encoder ve 0
+float Nav_Encoder_Get_Dist(void); //Lay gia tri encoder da di duoc tinh tu luc reset
 
 //Bo loc khong gian
 
@@ -38,7 +41,9 @@ bool Check_Front_Corridor(void) {
     return false; // Hành lang phía trước an toàn
 }
 
-//Phat hien vat can, quet toan dai tu 0-180 do va dua ra quyet dinh di chuyen
+//=====================================================BO LOC KHONG GIAN==============================================================
+
+//=============================================================================================================================
 Nav_Direction Scan_and_Decide(void) {
     uint16_t left_clearance = 0, right_clearance = 0;
     int left_edge_angle = 0, right_edge_angle = 0;
