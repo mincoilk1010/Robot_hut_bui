@@ -31,6 +31,9 @@
   #include "math.h"
   #include "navigation.h"
   #include "OLED.h"
+	#include "encoder.h"
+	#include "mpu6050.h"
+	#include "control.h"
 
 /* USER CODE END Includes */
 
@@ -80,7 +83,8 @@ UART_HandleTypeDef huart1;
   int16_t angle_step = 10; 
   uint32_t last_scan_tick = 0; 
   uint8_t oled_update_tick = 0;
-  
+  // --Bien do khoang cach vlx
+	uint16_t dist = 0;
   // Biến dùng để giới hạn tốc độ in UART, chống treo máy (ĐÃ KHÔI PHỤC)
   uint32_t last_uart_tick = 0;
 
@@ -105,19 +109,41 @@ static void MX_I2C3_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-	void Debug_Print1(void)
-  {
-    sprintf(uart_buf, ">sl:%.2f\n>vl:%.2f\n>pl:%d\n>sr:%.2f\n>vr:%.2f\n>pr:%d\n>yaw:%.2f\n",
-                sl,
-                ec_l.vel,
-                p_l,
-                sr,
-                ec_r.vel,
-                p_r,
-          yaw
-        );
-      HAL_UART_Transmit(&huart1, (u8*)uart_buf, strlen(uart_buf), 10);
-  }
+	/* USER CODE BEGIN 0 */
+
+//void Debug_Print1(void)
+//{
+//    // Sử dụng trực tiếp biến toàn cục lidarDistance từ file navigation.h
+//    sprintf(uart_buf, ">sl:%.2f\n>vl:%.2f\n>pl:%d\n>sr:%.2f\n>vr:%.2f\n>pr:%d\n>lidar:%u\n",
+//            sl,
+//            ec_l.vel,
+//            p_l,
+//            sr,
+//            ec_r.vel,
+//            p_r,
+//            lidarDistance // Đổi từ dist thành lidarDistance để lấy từ lõi thuật toán điều hướng
+//    );
+//    HAL_UART_Transmit(&huart1, (u8*)uart_buf, strlen(uart_buf), 10);
+//}
+
+void Debug_Print1(void)
+{
+    // Sử dụng trực tiếp biến toàn cục lidarDistance từ file navigation.h
+    sprintf(uart_buf, ">sl:%.2f		>vl:%.2f		>pl:%d		>sr:%.2f		>vr:%.2f		>pr:%d		>yaw:%2.f		>lidar:%u\n",
+            sl,
+            ec_l.vel,
+            p_l,
+            sr,
+            ec_r.vel,
+            p_r,
+						yaw,
+            dist // Đổi từ dist thành lidarDistance để lấy từ lõi thuật toán điều hướng
+    );
+    HAL_UART_Transmit(&huart1, (u8*)uart_buf, strlen(uart_buf), 10);
+}
+
+
+/* USER CODE END 0 */
 
 /* USER CODE END 0 */
 
@@ -160,40 +186,40 @@ int main(void)
   MX_TIM3_Init();
   MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
-		HAL_Delay(200);
-
-    // ========================================================
-    // 1. KHỞI TẠO MÀN HÌNH OLED
-    // ========================================================
-    OLED_Init();
-    ssd1306_SetCursor(10, 25);
-    ssd1306_WriteString("RADAR INIT...", Font_7x10, White);
-    ssd1306_UpdateScreen();
-
-    // ========================================================
-  // 2. KHỞI TẠO CÁC MODULE CỦA ROBOT (ĐÃ MỞ LẠI COMMAND)
+  // ========================================================
+  // BƯỚC 1: Robot_Init() TRƯỚC — calibrate MPU (~2s blocking)
+  //         ISR chưa fire vì MPU chưa bật interrupt
+  //         FIX BUG: trước đây OLED_Init trước → Robot_Init
+  //         bật ISR trong lúc OLED đang dùng I2C → crash
   // ========================================================
   Robot_Init();
 
-  // Lưu ý: Nếu trong hàm Robot_Init() của bạn chưa gọi initVL53L0X(1, &hi2c2) 
-  // thì bạn mới cần bật dòng dưới đây lên nhé.
-  // initVL53L0X(1, &hi2c2); 
-
   // ========================================================
-  // 3. KÍCH HOẠT RADAR
+  // BƯỚC 2: Kích hoạt VL53L0X continuous mode
+  //         (Robot_Init đã gọi initVL53L0X bên trong)
   // ========================================================
   startContinuous(0);
+
+  // ========================================================
+  // BƯỚC 3: Init servo — GỌI MỘT LẦN DUY NHẤT ở đây
+  //         FIX BUG: Robot_Init() đã HAL_TIM_PWM_Start(htim3)
+  //         → KHÔNG gọi Servo_Init() lần 2 nữa (double-start)
+  //         Chỉ WriteAngle để đặt servo về giữa
+  // ========================================================
   Servo_Init(&htim3, TIM_CHANNEL_1);
   Servo_WriteAngle(0);
-    
+  HAL_Delay(50);  /* chờ servo về 90° trước khi scanner chạy */
+
   // ========================================================
-  // 4. BÁO HIỆU SẴN SÀNG LÊN MÀN HÌNH
+  // BƯỚC 4: OLED init SAU KHI tất cả phần cứng đã ổn định
+  //         ISR đang chạy nhưng OLED dùng hi2c3 độc lập
+  //         → Không xung đột với MPU(hi2c1) hay LiDAR(hi2c2)
   // ========================================================
-  ssd1306_Fill(Black);
-  ssd1306_SetCursor(10, 25);
-  ssd1306_WriteString("RADAR READY", Font_7x10, White);
+  OLED_Init();
+  ssd1306_SetCursor(10, 20);
+  ssd1306_WriteString("ROBOT READY", Font_7x10, White);
   ssd1306_UpdateScreen();
-  HAL_Delay(1000); // Dừng 1s để mắt người kịp nhìn thấy chữ READY
+  HAL_Delay(1000);
 
   /* USER CODE END 2 */
 
@@ -215,16 +241,10 @@ int main(void)
           last_scan_tick = HAL_GetTick();
 
           // Đọc khoảng cách và nạp vào mảng Lidar Map
-          uint16_t dist = readRangeContinuousMillimeters(0);
+          dist = readRangeContinuousMillimeters(0);
           if(current_angle >= 0 && current_angle <= 180) {
               Lidar_Map[current_angle] = dist; 
           }
-
-          // ---> ĐÃ KHÔI PHỤC: GỬI DỮ LIỆU LÊN HERCULES Ở ĐÂY <---
-          char msg_radar[60];
-          sprintf(msg_radar, "[Radar] Goc: %d do - Khoang cach: %d mm\r\n", current_angle, dist);
-          HAL_UART_Transmit(&huart1, (uint8_t*)msg_radar, strlen(msg_radar), 10);
-          // ------------------------------------------------------
 
           // Cập nhật góc Servo quay qua lại (Ping-pong)
           current_angle += angle_step;
@@ -243,47 +263,49 @@ int main(void)
               OLED_DrawRadarMap();
               oled_update_tick = 0;
           }
+					
+					Debug_Print1();
       }
 
       // ==============================================================
       // TIẾN TRÌNH 2: ĐIỀU KHIỂN CHẠY ZIC-ZAC
       // ==============================================================
-      float d = (ec_l.dist + ec_r.dist) * 0.5f;
+    //   float d = (ec_l.dist + ec_r.dist) * 0.5f;
 
-      if(state == 0)
-      {
-        g_sp_v = 0.15f;
+    //   if(state == 0)
+    //   {
+    //     g_sp_v = 0.15f;
 
-        if(d > 1.0f)
-        {
-          turn_start(90.0f);
-          state = 1;
-        }
-      }
-      else if(state == 1)
-      {
-        if(turn.done)
-        {
-          ec_l.dist = 0;
-          ec_r.dist = 0;
-          heading_target = yaw;
-          state = 0;
-        }
-      }
+    //     if(d > 1.0f)
+    //     {
+    //       turn_start(90.0f);
+    //       state = 1;
+    //     }
+    //   }
+    //   else if(state == 1)
+    //   {
+    //     if(turn.done)
+    //     {
+    //       ec_l.dist = 0;
+    //       ec_r.dist = 0;
+    //       heading_target = yaw;
+    //       state = 0;
+    //     }
+    //   }
 
-      // ==============================================================
-      // TIẾN TRÌNH 3: GỬI LOG TELEPLOT CHỐNG TREO MÁY (Mỗi 100ms)
-      // ==============================================================
-      // ĐÃ KHÔI PHỤC BỘ LỌC THỜI GIAN ĐỂ CHỐNG LỖI TREO I2C/UART
-      if (HAL_GetTick() - last_uart_tick >= 100) 
-      {
-          last_uart_tick = HAL_GetTick();
-          // Tạm thời comment hàm Debug_Print1() lại để Hercules không bị nhiễu dữ liệu rác
-          // Khi nào cần log động cơ, bạn bỏ dấu "//" đi nhé!
-          // Debug_Print1(); 
-      }
+    //   // ==============================================================
+    //   // TIẾN TRÌNH 3: GỬI LOG TELEPLOT CHỐNG TREO MÁY (Mỗi 100ms)
+    //   // ==============================================================
+    //   // ĐÃ KHÔI PHỤC BỘ LỌC THỜI GIAN ĐỂ CHỐNG LỖI TREO I2C/UART
+    //   if (HAL_GetTick() - last_uart_tick >= 100) 
+    //   {
+    //       last_uart_tick = HAL_GetTick();
+    //       // Tạm thời comment hàm Debug_Print1() lại để Hercules không bị nhiễu dữ liệu rác
+    //       // Khi nào cần log động cơ, bạn bỏ dấu "//" đi nhé!
+    //       // Debug_Print1(); 
+    //   }
 
-    }
+ }
   /* USER CODE END 3 */
 }
 
@@ -584,7 +606,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 167;
+  htim3.Init.Prescaler = 84;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 19999;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;

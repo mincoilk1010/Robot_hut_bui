@@ -1,9 +1,16 @@
 #include "navigation.h"
-#include "main.h"
-
+#include "control.h"     /* g_sp_v, g_sp_w, turn_start/task/done, heading_target */
+#include "encoder.h"     /* ec_l, ec_r */
+#include "mpu6050.h"     /* yaw */
+#include "nav.h"         /* NAV_SPEED */
 
 uint16_t lidarDistance = 0; // Mang luu gia tri VL53L0X o cac goc quay
 uint16_t Lidar_Map[181] = {0}; // Ban do luu gia tri VL53L0X o cac goc quay tu 0 den 180 do
+
+/* Snapshot encoder tại lúc gọi Nav_Encoder_Reset() */
+static float _enc_snap_l = 0.0f;
+static float _enc_snap_r = 0.0f;
+
 
 //Ham lay gia tri khoang cach hien tai va luu vao bien toan cuc (de sau nay hien thi ra OLED)
 uint16_t Lidar_GetDist() {
@@ -15,14 +22,74 @@ uint16_t Lidar_GetDist() {
 //=====================================================DI CHUYEN===============================================================
 
 //=============================================================================================================================
-void Nav_Motor_Forward(void ); //Chay tien
-void Nav_Motor_Reverse(void ); //Chay lui
-void Nav_Motor_Stop(void);  //Phanh
-void Nav_MPU_Turn(int angle); //Quay xe
-void Nav_Encoder_Reset(void); //Reset encoder ve 0
-float Nav_Encoder_Get_Dist(void); //Lay gia tri encoder da di duoc tinh tu luc reset
+void Nav_Motor_Forward(void) {
+    // Để trống hoặc viết code điều khiển motor tiến ở đây sau
+		heading_target = yaw;
+    g_sp_v = NAV_SPEED;
+    g_sp_w = 0.0f;
 
-//Bo loc khong gian
+}
+
+void Nav_Motor_Reverse(void) {
+    // Để trống hoặc viết code điều khiển motor lùi ở đây sau
+		heading_target = yaw;
+    g_sp_v = -NAV_SPEED;
+    g_sp_w = 0.0f;
+}
+
+void Nav_Motor_Stop(void) {
+    g_sp_v = 0.0f;
+    g_sp_w = 0.0f;
+    HAL_Delay(50);
+}
+
+void Nav_MPU_Turn(int angle)
+{
+    if (angle == 0) return;
+ 
+    /* Dừng hoàn toàn trước khi quay để tránh trượt bánh */
+    g_sp_v = 0.0f;
+    g_sp_w = 0.0f;
+    HAL_Delay(50);
+ 
+    turn_start((float)angle);
+ 
+    /* Polling — ISR lo turn_task() + motorcontrol_pid() mỗi 20ms */
+    uint32_t t0 = HAL_GetTick();
+    while (!turn_done())
+    {
+        if ((HAL_GetTick() - t0) > (TURN_TIMEOUT_MS + 500u))
+        {
+            g_sp_v = 0.0f;
+            g_sp_w = 0.0f;
+            break;  /* timeout an toàn */
+        }
+        /* Main loop rảnh → có thể đọc sensor, log UART, v.v. */
+    }
+ 
+    /* Dừng sạch sau khi quay xong */
+    g_sp_v = 0.0f;
+    g_sp_w = 0.0f;
+    HAL_Delay(50);
+ 
+    /* Chốt heading mới cho lần Forward tiếp theo */
+    heading_target = yaw;
+}
+
+void Nav_Encoder_Reset(void)
+{
+    _enc_snap_l = ec_l.dist;
+    _enc_snap_r = ec_r.dist;
+}
+
+float Nav_Encoder_Get_Dist(void)
+{
+    float dl = ec_l.dist - _enc_snap_l;
+    float dr = ec_r.dist - _enc_snap_r;
+    return (dl + dr) * 0.5f;
+}
+
+
 
 //Quet hanh lang phia truoc (60-120 do)
 bool Check_Front_Corridor(void) {

@@ -25,16 +25,20 @@ typedef enum {
     DIR_ABORT = 0
 } Nav_Direction;
 
+
+
 //Ham tra ve gia tri distance cua VL53L0X
 uint16_t Lidar_GetDist(void);
 
 //Phan di chuyen
-void Nav_Motor_Forward(void ); //Chay tien
-void Nav_Motor_Reverse(void ); //Chay lui
-void Nav_Motor_Stop(void);  //Phanh
-void Nav_MPU_Turn(int angle); //Quay xe
-void Nav_Encoder_Reset(void); //Reset encoder ve 0
-float Nav_Encoder_Get_Dist(void); //Lay gia tri encoder da di duoc tinh tu luc reset
+
+extern void Nav_Motor_Forward(void ); //Chay tien
+extern void Nav_Motor_Reverse(void ); //Chay lui
+extern void Nav_Motor_Stop(void);  //Phanh
+extern void Nav_MPU_Turn(int angle); //Quay xe
+extern void Nav_Encoder_Reset(void); //Reset encoder ve 0
+extern float Nav_Encoder_Get_Dist(void); //Lay gia tri encoder da di duoc tinh tu luc reset
+
 
 //Phan ra quyet dinh
 bool Check_Front_Corridor(void);

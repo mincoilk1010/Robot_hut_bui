@@ -26,4 +26,7 @@ doan_01/navigation.o: ..\hardware\src\navigation.c \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_tim.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_tim_ex.h \
   ..\Drivers\STM32F4xx_HAL_Driver\Inc\stm32f4xx_hal_uart.h \
-  ..\hardware\inc\Servo.h
+  ..\hardware\inc\Servo.h ..\hardware\inc\control.h \
+  ..\hardware\inc\types.h ..\hardware\inc\pid.h ..\hardware\inc\motor.h \
+  ..\hardware\inc\encoder.h ..\hardware\inc\mpu6050.h \
+  ..\hardware\inc\delay.h ..\hardware\inc\nav.h
