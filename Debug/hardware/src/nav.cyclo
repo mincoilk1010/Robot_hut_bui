@@ -1,5 +1,7 @@
-../hardware/src/nav.c:19:13:_nenter	1
-../hardware/src/nav.c:21:14:_dist	1
-../hardware/src/nav.c:29:13:_fwd_ctrl	5
-../hardware/src/nav.c:37:6:nav_init	1
-../hardware/src/nav.c:47:6:nav_task	33
+E:/STM32f4/doan_01/hardware/inc/hc_sr04.h:33:18:hcsr04_cliff_detected	3
+../hardware/src/nav.c:163:13:_nenter	1
+../hardware/src/nav.c:165:14:_dist	1
+../hardware/src/nav.c:173:13:_fwd_ctrl	5
+../hardware/src/nav.c:188:11:_pick_avoid_dir	12
+../hardware/src/nav.c:217:6:nav_init	1
+../hardware/src/nav.c:227:6:nav_task	33

@@ -18,6 +18,9 @@ C_SRCS += \
 ../hardware/src/nav.c \
 ../hardware/src/pid.c \
 ../hardware/src/robot.c \
+../hardware/src/ssd1306.c \
+../hardware/src/ssd1306_fonts.c \
+../hardware/src/ssd1306_tests.c \
 ../hardware/src/vl53_scan.c 
 
 OBJS += \
@@ -34,6 +37,9 @@ OBJS += \
 ./hardware/src/nav.o \
 ./hardware/src/pid.o \
 ./hardware/src/robot.o \
+./hardware/src/ssd1306.o \
+./hardware/src/ssd1306_fonts.o \
+./hardware/src/ssd1306_tests.o \
 ./hardware/src/vl53_scan.o 
 
 C_DEPS += \
@@ -50,6 +56,9 @@ C_DEPS += \
 ./hardware/src/nav.d \
 ./hardware/src/pid.d \
 ./hardware/src/robot.d \
+./hardware/src/ssd1306.d \
+./hardware/src/ssd1306_fonts.d \
+./hardware/src/ssd1306_tests.d \
 ./hardware/src/vl53_scan.d 
 
 
@@ -60,7 +69,7 @@ hardware/src/%.o hardware/src/%.su hardware/src/%.cyclo: ../hardware/src/%.c har
 clean: clean-hardware-2f-src
 
 clean-hardware-2f-src:
-	-$(RM) ./hardware/src/Servo.cyclo ./hardware/src/Servo.d ./hardware/src/Servo.o ./hardware/src/Servo.su ./hardware/src/VL53L0X.cyclo ./hardware/src/VL53L0X.d ./hardware/src/VL53L0X.o ./hardware/src/VL53L0X.su ./hardware/src/avoid.cyclo ./hardware/src/avoid.d ./hardware/src/avoid.o ./hardware/src/avoid.su ./hardware/src/control.cyclo ./hardware/src/control.d ./hardware/src/control.o ./hardware/src/control.su ./hardware/src/delay.cyclo ./hardware/src/delay.d ./hardware/src/delay.o ./hardware/src/delay.su ./hardware/src/encoder.cyclo ./hardware/src/encoder.d ./hardware/src/encoder.o ./hardware/src/encoder.su ./hardware/src/hc_sr04.cyclo ./hardware/src/hc_sr04.d ./hardware/src/hc_sr04.o ./hardware/src/hc_sr04.su ./hardware/src/map.cyclo ./hardware/src/map.d ./hardware/src/map.o ./hardware/src/map.su ./hardware/src/motor.cyclo ./hardware/src/motor.d ./hardware/src/motor.o ./hardware/src/motor.su ./hardware/src/mpu6050.cyclo ./hardware/src/mpu6050.d ./hardware/src/mpu6050.o ./hardware/src/mpu6050.su ./hardware/src/nav.cyclo ./hardware/src/nav.d ./hardware/src/nav.o ./hardware/src/nav.su ./hardware/src/pid.cyclo ./hardware/src/pid.d ./hardware/src/pid.o ./hardware/src/pid.su ./hardware/src/robot.cyclo ./hardware/src/robot.d ./hardware/src/robot.o ./hardware/src/robot.su ./hardware/src/vl53_scan.cyclo ./hardware/src/vl53_scan.d ./hardware/src/vl53_scan.o ./hardware/src/vl53_scan.su
+	-$(RM) ./hardware/src/Servo.cyclo ./hardware/src/Servo.d ./hardware/src/Servo.o ./hardware/src/Servo.su ./hardware/src/VL53L0X.cyclo ./hardware/src/VL53L0X.d ./hardware/src/VL53L0X.o ./hardware/src/VL53L0X.su ./hardware/src/avoid.cyclo ./hardware/src/avoid.d ./hardware/src/avoid.o ./hardware/src/avoid.su ./hardware/src/control.cyclo ./hardware/src/control.d ./hardware/src/control.o ./hardware/src/control.su ./hardware/src/delay.cyclo ./hardware/src/delay.d ./hardware/src/delay.o ./hardware/src/delay.su ./hardware/src/encoder.cyclo ./hardware/src/encoder.d ./hardware/src/encoder.o ./hardware/src/encoder.su ./hardware/src/hc_sr04.cyclo ./hardware/src/hc_sr04.d ./hardware/src/hc_sr04.o ./hardware/src/hc_sr04.su ./hardware/src/map.cyclo ./hardware/src/map.d ./hardware/src/map.o ./hardware/src/map.su ./hardware/src/motor.cyclo ./hardware/src/motor.d ./hardware/src/motor.o ./hardware/src/motor.su ./hardware/src/mpu6050.cyclo ./hardware/src/mpu6050.d ./hardware/src/mpu6050.o ./hardware/src/mpu6050.su ./hardware/src/nav.cyclo ./hardware/src/nav.d ./hardware/src/nav.o ./hardware/src/nav.su ./hardware/src/pid.cyclo ./hardware/src/pid.d ./hardware/src/pid.o ./hardware/src/pid.su ./hardware/src/robot.cyclo ./hardware/src/robot.d ./hardware/src/robot.o ./hardware/src/robot.su ./hardware/src/ssd1306.cyclo ./hardware/src/ssd1306.d ./hardware/src/ssd1306.o ./hardware/src/ssd1306.su ./hardware/src/ssd1306_fonts.cyclo ./hardware/src/ssd1306_fonts.d ./hardware/src/ssd1306_fonts.o ./hardware/src/ssd1306_fonts.su ./hardware/src/ssd1306_tests.cyclo ./hardware/src/ssd1306_tests.d ./hardware/src/ssd1306_tests.o ./hardware/src/ssd1306_tests.su ./hardware/src/vl53_scan.cyclo ./hardware/src/vl53_scan.d ./hardware/src/vl53_scan.o ./hardware/src/vl53_scan.su
 
 .PHONY: clean-hardware-2f-src
 

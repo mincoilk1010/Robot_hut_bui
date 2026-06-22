@@ -1,9 +1,3 @@
-/*
- * hc_sr04.c
- *
- *  Created on: May 14, 2026
- *      Author: GB Center
- */
 
 #include "hc_sr04.h"
 #include "delay.h"
@@ -12,11 +6,17 @@ HC_t hc[2] ={0};
 
 void hcsr04_read()
 {
-	if(hc[0].busy || hc[1].busy)
+	/* Không bắn trigger mới nếu vòng đo trước chưa xong, tránh xung
+	 * chồng lấp làm sai capture. */
+	if(hc[0].busy || hc[1].busy) return;
+
+	u32 now = HAL_GetTick();
 	for (u8 i=0; i < 2; i++)
 	{
 		hc[i].first_cap = 0;
 		hc[i].done = 0;
+		hc[i].busy = 1;
+		hc[i].start_ms = now;
 	}
 	TIM1->DIER |= (1 << 1);  /* CC1IE */
     TIM1->DIER |= (1 << 2);  /* CC2IE */

@@ -12,12 +12,11 @@
 #include <math.h>
  
 Scanner_t sc={0};
- 
-static void _svo(u8 deg)
+ u16 d = 0;
+void _svo(u8 deg)
 {
-
     if(deg>180u)deg=180u;
-    __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1,500u+(u32)deg*2000u/180u);
+    __HAL_TIM_SET_COMPARE(&htim3,TIM_CHANNEL_1,500+(u32)deg*2000u/180u);
 }
 static void _enter_narrow(void)
 {
@@ -41,7 +40,7 @@ void scanner_init(void)
     _enter_narrow();
     sc.done=0; 
     sc.cycle=0;
-    _svo(90u); 
+    _svo(90);
     HAL_Delay(50);
 }
  
@@ -62,13 +61,13 @@ void scanner_task(void)
         if(now-sc.t_servo>=SC_WAIT_MS) sc.state=SC_READ;
          break;
     case SC_READ:{
-        uint16_t d=(uint16_t)readRangeSingleMillimeters(NULL);
+        d=(uint16_t)readRangeContinuousMillimeters(0);
         if(d==0||d>2000u) d=9999u;
         u8 idx=sc.angle/SC_STEP;
         if(idx<37u) sc.data[idx]=d;
         map_update(pose.x,pose.y,pose.theta,(float)sc.angle,d);
  
-        /* Chuyển mode */
+
         if(sc.mode==SC_NARROW && d<SC_OBS_MM){
             _enter_wide();
              return;
@@ -81,7 +80,7 @@ void scanner_task(void)
                 _enter_narrow();
                 return;}
         }
-        /* Góc tiếp theo */
+
         if(sc.angle<sc.amax){ sc.angle+=SC_STEP; sc.state=SC_MOVE; }
         else{
             _svo(90u); sc.done=1; sc.cycle++;

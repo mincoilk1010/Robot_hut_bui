@@ -28,7 +28,7 @@ volatile float yaw = 0.0f;
  * ảnh hưởng lúc đang di chuyển, chỉ âm thầm bù khi MPU nóng dần
  * lên làm offset gyro lệch nhẹ so với lúc mới calibrate.         */
 #define BIAS_TRACK_RATE   0.0008f
-_vo u8 Flag = 0;
+
 static void _bias_retrack(void)
 {
     u8 stationary = (ABS_F(ec_l.vel) < 0.01f) && (ABS_F(ec_r.vel) < 0.01f);
@@ -72,13 +72,13 @@ void mpu6050_Init(void)
 // Ham hieu chuan: goi ham nay khi vua bat nguon
 void mpu6050_Calibrate(void)
 {
-    /*
+
 
     long sumGZ = 0;
     // doc 2000 lan de lay gia tri trung binh sai so tinh
     for (int i = 0; i < 2000; i++) {
         uint8_t gy_data[6];
-        HAL_I2C_Mem_Read(&hi2c2, MPU6050_ADDR, 0x43, 1, gy_data, 6, 10);
+        HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, 0x43, 1, gy_data, 6, 10);
         int16_t gz_raw = (int16_t)(gy_data[4] << 8 | gy_data[5]);
         sumGZ += gz_raw;
         HAL_Delay(1);
@@ -87,7 +87,7 @@ void mpu6050_Calibrate(void)
     GZ_calib = (float)(sumGZ / 2000.0f) / 131.0f;
 		// Reset yaw ve 0 sau khi calibrate
     yaw = 0.0f;
-    */
+    /*
     long  sum  = 0;
     double sumsq = 0.0;
     uint8_t b[2];
@@ -106,7 +106,7 @@ void mpu6050_Calibrate(void)
     double var_raw = (sumsq/2000.0) - (double)mean_raw*(double)mean_raw;
     if (var_raw < 0.0) var_raw = 0.0;
     GZ_std = (float)(sqrt(var_raw) / 131.0);
-    if (GZ_std < 0.015f) GZ_std = 0.015f;  /* sàn an toàn, tránh =0 */
+    if (GZ_std < 0.015f) GZ_std = 0.015f;
  
 
     GZ_deadzone = limit(3.0f * GZ_std, 0.02f, 0.15f);
@@ -114,6 +114,7 @@ void mpu6050_Calibrate(void)
     yaw = 0.0f;
     GZ_raw = 0.0f;
     GZ     = 0.0f;
+    */
 
 }
 
@@ -175,6 +176,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         if(Flag >= 2)
         {
         	Flag = 0;
+        	F = 1 ;
         	static f32 d_l = 0.0f;
         	static f32 d_r = 0.0f;
 
@@ -200,12 +202,31 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     		}
 
 
-    		  nav_task();
+
 
     		 //HeadingHold_Task();
     		//turn_task();
-            PH_task();
+            /*
+    		if (turn.state == TR_IDLE || turn.state == TR_DONE || turn.state == TR_TOUT)
+    		{
+    		    HeadingHold_Task();
+    		}
+    		else
+    		{
+    		    turn_task();
+    		}
+    		PH_task();
+    	    */
+    		if (turn.state == TR_IDLE || turn.state == TR_DONE || turn.state == TR_TOUT)
+    		{
+    		    HeadingHold_Task();
+    		}
+    		else
+    		{
+    		    turn_task();
+    		}
         	motorcontrol_pid();
+
         }
 
     }

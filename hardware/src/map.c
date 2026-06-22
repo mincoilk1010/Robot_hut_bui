@@ -54,7 +54,7 @@ void map_update(f32 rx, f32 ry,f32 rth, f32 sdeg, u16 dmm)
     int ogx = _gx(rx+dm*cosf(a)), ogy = _gy(ry + dm * sinf(a));
     for(int dy=-1;dy<=1;dy++)
     {
-        for(int dx=-1; dy<=1;dx++)
+        for(int dx=-1; dx<=1;dx++)
         {
             int nx = ogx + dx, ny = ogy+dy;
             if(_gv(nx,ny)) grid[ny][nx] = limit((i16)grid[ny][nx] - 25,-100,100);

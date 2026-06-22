@@ -77,31 +77,47 @@ static void MX_I2C3_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+uint16_t di = 0;
 char uart_buf[200];
 u32 prev_10ms = 0;
 _vo u32 g_ms = 0;
- _vo float g_sp_v =0.0f,g_sp_w = 0.0f;
+ _vo float g_sp_v =0.15f,g_sp_w = 0.0f;
 i16 p_l ,p_r ;
 float sr ,sl ;
 _vo u8  Flag_Target ;
 float heading_target = 0.0f;
 u8 state = 0;
 statInfo_t_VL53L0X stat;
+_vo u8  Flag = 0;
 void Debug_Print1(void)
 {
 
     // Sửa lại định dạng chuỗi: Thêm dấu '>' trước mỗi tên biến để TelePlot nhận diện được từng biến riêng biệt
-	sprintf(uart_buf, "%.2f,%.2f,%d,%.2f,%.2f,%d%.2f\r\n",
-	            sl,
-	            ec_l.vel,
-	            p_l,
-	            sr,
-	            ec_r.vel,
-	            p_r,
-				yaw
+	sprintf(uart_buf, "li:   %u\r\n",
+	            di
 	    );
 
 
+    HAL_UART_Transmit(&huart1, (u8*)uart_buf, strlen(uart_buf), 10);
+}
+void Debug_Print2(void)
+{
+    char *msg = "Hello\r\n";
+    HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), 100);
+}
+void Debug_Print(void)
+{
+    // Sử dụng trực tiếp biến toàn cục lidarDistance từ file navigation.h
+    sprintf(uart_buf, ">sl:%.2f		>vl:%.2f		>pl:%d		>sr:%.2f		>vr:%.2f		>pr:%d		>yaw:%2.f		>lidar:%u\n",
+            sl,
+            ec_l.vel,
+            p_l,
+            sr,
+            ec_r.vel,
+            p_r,
+						yaw,
+            d // Đổi từ dist thành lidarDistance để lấy từ lõi thuật toán điều hướng
+    );
     HAL_UART_Transmit(&huart1, (u8*)uart_buf, strlen(uart_buf), 10);
 }
 /* USER CODE END 0 */
@@ -148,6 +164,8 @@ int main(void)
 
 
   Robot_Init();
+
+  Debug_Print2();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -160,12 +178,45 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	 // Robot_Loop();
-	  u16 d = readRangeSingleMillimeters(&stat);
-	  sprintf( uart_buf,"D = %d mm\r\n",d);
+	 Robot_Loop();
+	 Debug_Print();
 
-	  HAL_UART_Transmit(&huart1,(uint8_t*)uart_buf,strlen(uart_buf),100);
-	  HAL_Delay(600);
+
+
+
+
+
+	  /*
+    if (HAL_GetTick() - last_scan_tick >= 50) 
+      {
+          last_scan_tick = HAL_GetTick();
+
+          // Đọc khoảng cách và nạp vào mảng Lidar Map
+          uint16_t dist = readRangeContinuousMillimeters(0);
+          if(current_angle >= 0 && current_angle <= 180) {
+              Lidar_Map[current_angle] = dist; 
+          }
+
+          // Cập nhật góc Servo quay qua lại (Ping-pong)
+          current_angle += angle_step;
+          if (current_angle >= 180) {
+              current_angle = 180;
+              angle_step = -10;
+          } else if (current_angle <= 0) {
+              current_angle = 0;
+              angle_step = 10;
+          }
+          Servo_WriteAngle(current_angle);
+
+          // Giảm tần suất cập nhật OLED (Vẽ lại sau mỗi 3 chu kỳ = 150ms)
+          // Tránh tình trạng OLED nuốt hết tài nguyên CPU của PID động cơ
+       //   oled_update_tick++;
+          if(oled_update_tick >= 3) {
+           //   OLED_DrawRadarMap();
+             // oled_update_tick = 0;
+          }
+      }
+    */
 /*
 	  float d = (ec_l.dist + ec_r.dist) * 0.5f;
 
@@ -193,10 +244,12 @@ int main(void)
 		}
 
 	     Debug_Print1();
-	     */
 
+*/
   }
+
   /* USER CODE END 3 */
+  
 }
 
 /**
@@ -498,7 +551,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 83;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 1999;
+  htim3.Init.Period = 19999;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)

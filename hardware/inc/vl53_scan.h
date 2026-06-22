@@ -11,10 +11,11 @@
 #include "types.h"
 #include "VL53L0X.h"
 #include "main.h"
+#include "types.h"
 #define SC_OBS_MM    400u   /* < 40cm → wide mode */
 #define SC_CLEAR_MM  600u   /* > 60cm × 5 → narrow mode */
-#define SC_N_MIN      60u
-#define SC_N_MAX     120u
+#define SC_N_MIN      40u
+#define SC_N_MAX     140u
 #define SC_W_MIN       0u
 #define SC_W_MAX     180u
 #define SC_STEP        5u
@@ -39,7 +40,10 @@ typedef struct{
     u8 clear_cnt;
 } Scanner_t;
 extern Scanner_t sc;
+
 extern TIM_HandleTypeDef htim3;
+extern u16 d;
+void _svo(u8 deg);
 void    scanner_init(void);
 void    scanner_task(void);
 u16     scanner_get(u8 deg);

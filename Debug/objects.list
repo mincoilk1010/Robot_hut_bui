@@ -36,4 +36,7 @@
 "./hardware/src/nav.o"
 "./hardware/src/pid.o"
 "./hardware/src/robot.o"
+"./hardware/src/ssd1306.o"
+"./hardware/src/ssd1306_fonts.o"
+"./hardware/src/ssd1306_tests.o"
 "./hardware/src/vl53_scan.o"

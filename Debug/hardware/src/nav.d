@@ -40,7 +40,8 @@ hardware/src/nav.o: ../hardware/src/nav.c \
  E:/STM32f4/doan_01/hardware/inc/vl53_scan.h \
  E:/STM32f4/doan_01/hardware/inc/VL53L0X.h \
  E:/STM32f4/doan_01/hardware/inc/hc_sr04.h \
- E:/STM32f4/doan_01/hardware/inc/map.h
+ E:/STM32f4/doan_01/hardware/inc/map.h \
+ E:/STM32f4/doan_01/hardware/inc/avoid.h
 E:/STM32f4/doan_01/hardware/inc/nav.h:
 E:/STM32f4/doan_01/hardware/inc/types.h:
 E:/STM32f4/doan_01/hardware/inc/control.h:
@@ -84,3 +85,4 @@ E:/STM32f4/doan_01/hardware/inc/vl53_scan.h:
 E:/STM32f4/doan_01/hardware/inc/VL53L0X.h:
 E:/STM32f4/doan_01/hardware/inc/hc_sr04.h:
 E:/STM32f4/doan_01/hardware/inc/map.h:
+E:/STM32f4/doan_01/hardware/inc/avoid.h:

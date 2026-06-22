@@ -1,7 +1,7 @@
 #include "avoid.h"
 #include "vl53_scan.h"
 #include <math.h>
- 
+
 uint8_t Avoid_FindBestGap(Gap_t *out)
 {
     out->found = 0;

@@ -1,2 +1,2 @@
-../hardware/src/robot.c:9:6:Robot_Init	8	static
-../hardware/src/robot.c:34:6:Robot_Loop	8	static
+../hardware/src/robot.c:11:6:Robot_Init	80	static
+../hardware/src/robot.c:53:6:Robot_Loop	16	static

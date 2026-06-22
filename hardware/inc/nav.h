@@ -1,10 +1,3 @@
-/*
- * nav.h
- *
- *  Created on: Jun 17, 2026
- *      Author: GB Center
- */
-
 #ifndef INC_NAV_H_
 #define INC_NAV_H_
 #include "types.h"
@@ -18,7 +11,11 @@ typedef enum{
     N_CROSS,N_TURN90B,N_CLIFF,N_DONE
 }NavSt_t;
 typedef struct{
-    NavSt_t st; i8 dir; u8 row;
+    NavSt_t st;
+    i8 dir;        /* hướng quay hiện tại: +1 = quay phải(-90°), -1 = quay trái(+90°).
+                     * Trong N_BRAKE được CHỌN LẠI mỗi lần theo bên nào thoáng hơn
+                     * (xem nav_task/_pick_avoid_dir), không còn cố định 1 chiều. */
+    u8 row;
     float lane_yaw,x0,y0;
     u32 t0; u8 done;
 }Nav_t;

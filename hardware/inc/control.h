@@ -18,7 +18,7 @@
 #include "delay.h"
 
 #define PH_KP_DIST   1.2f
-#define PH_KP_HEAD   2.5f
+#define PH_KP_HEAD   2.0f
 #define PH_MAX_V     0.3f
 #define PH_DEAD_M    0.03f   /* 3cm: tại đích */
 #define PH_DEAD_R    0.10f   /* 6°: thẳng hướng */
@@ -50,13 +50,14 @@ extern _vo float g_sp_v,g_sp_w;
 extern i16 p_l ,p_r ;
 extern float sr ,sl ;
 extern _vo u8  Flag ;
+extern _vo u8  F ;
 extern f32 prev_dist_l, prev_dist_r ;
 extern float heading_target;
 void HeadingHold_Task(void);
 void PH_activate();
 void PH_deactivate();
 void PH_task();
-const char* Ph_state_str();
+
 void pid_setup();
 void motorcontrol_pid();
 
@@ -69,10 +70,10 @@ void Kinematics_reset(void);
 
 
 
-#define TR_KP         0.0367f
-#define TR_KD         0.004f
+#define TR_KP         0.0384f
+#define TR_KD         0.0015f
 #define TR_W_MAX      2.5f
-#define TR_W_MIN      0.12f
+#define TR_W_MIN      0.15f
 #define TR_SLOW_DEG   18.0f
 #define TR_DONE_DEG   1.5f
 #define TR_ACCEL_MS   80u
