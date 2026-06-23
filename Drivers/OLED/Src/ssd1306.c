@@ -177,7 +177,7 @@ void ssd1306_Fill(SSD1306_COLOR color) {
 }
 
 /* Write the screenbuffer with changed to the screen */
-void ssd1306_UpdateScreen(void) {
+/*void ssd1306_UpdateScreen(void) {
     // Write data to each page of RAM. Number of pages
     // depends on the screen height:
     //
@@ -209,6 +209,28 @@ void ssd1306_UpdateScreen(void) {
             ssd1306_WriteData(&SSD1306_Buffer[SSD1306_WIDTH*i],SSD1306_WIDTH);
         #endif
             }
+} */
+
+void ssd1306_UpdateScreen(void) {
+    for(uint8_t i = 0; i < SSD1306_HEIGHT/8; i++) {
+        ssd1306_WriteCommand(0xB0 + i); 
+        ssd1306_WriteCommand(0x00 + SSD1306_X_OFFSET_LOWER);
+        ssd1306_WriteCommand(0x10 + SSD1306_X_OFFSET_UPPER);
+        
+        // Kiểm tra xem lệnh gọi DMA có thành công (HAL_OK) hay không
+        if (HAL_I2C_Mem_Write_DMA(&SSD1306_I2C_PORT, SSD1306_I2C_ADDR, 0x40, 1, 
+                                  &SSD1306_Buffer[SSD1306_WIDTH*i], SSD1306_WIDTH) == HAL_OK) {
+            
+            // THÊM BỘ ĐẾM TIMEOUT ĐỂ CHỐNG TREO CỨNG CPU
+            uint32_t dma_timeout = 100000; 
+            while (HAL_I2C_GetState(&SSD1306_I2C_PORT) != HAL_I2C_STATE_READY) {
+                dma_timeout--;
+                if (dma_timeout == 0) {
+                    break; // Thoát ra ngay nếu quá thời gian chờ, không cho phép treo mạch
+                }
+            }
+        }
+    }
 }
 
 /*

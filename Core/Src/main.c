@@ -163,8 +163,16 @@ int main(void)
   MX_TIM3_Init();
   MX_I2C3_Init();
   /* USER CODE BEGIN 2 */
-		HAL_Delay(200);
-
+		
+		sprintf(uart_buf, "[SYSTEM] BẮT ĐẦU KHỞI ĐỘNG...\r\n");
+		HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, strlen(uart_buf), 100);
+    Robot_Init();
+		startContinuous(0);
+    Servo_Init(&htim3, TIM_CHANNEL_1);
+    Servo_WriteAngle(90);
+		
+		sprintf(uart_buf, "[1] Dang khoi tao OLED...\r\n");
+		HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, strlen(uart_buf), 100);
     // ========================================================
     // 1. KHỞI TẠO MÀN HÌNH OLED
     // ========================================================
@@ -172,22 +180,12 @@ int main(void)
     ssd1306_SetCursor(10, 25);
     ssd1306_WriteString("RADAR INIT...", Font_7x10, White);
     ssd1306_UpdateScreen();
+		HAL_Delay(1000);
+		
+		sprintf(uart_buf, "    -> OLED OK!\r\n");
+		HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, strlen(uart_buf), 100);
 
-    // ========================================================
-  // 2. KHỞI TẠO CÁC MODULE CỦA ROBOT (ĐÃ MỞ LẠI COMMAND)
-  // ========================================================
-  Robot_Init();
-
-  // Lưu ý: Nếu trong hàm Robot_Init() của bạn chưa gọi initVL53L0X(1, &hi2c2) 
-  // thì bạn mới cần bật dòng dưới đây lên nhé.
-  // initVL53L0X(1, &hi2c2); 
-
-  // ========================================================
-  // 3. KÍCH HOẠT RADAR
-  // ========================================================
-  startContinuous(0);
-  Servo_Init(&htim3, TIM_CHANNEL_1);
-  Servo_WriteAngle(0);
+    
     
   // ========================================================
   // 4. BÁO HIỆU SẴN SÀNG LÊN MÀN HÌNH
@@ -587,7 +585,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 167;
+  htim3.Init.Prescaler = 83;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 19999;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
