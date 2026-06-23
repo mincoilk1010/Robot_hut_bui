@@ -1,8 +1,9 @@
-E:/STM32f4/doan_01/hardware/inc/map.h:25:19:_gx	1
-E:/STM32f4/doan_01/hardware/inc/map.h:26:19:_gy	1
-E:/STM32f4/doan_01/hardware/inc/map.h:27:19:_gv	5
-../hardware/src/map.c:12:6:map_init	1
-../hardware/src/map.c:18:13:_ray_free	10
-../hardware/src/map.c:43:6:map_update	8
-../hardware/src/map.c:65:6:map_mark_robot	7
-../hardware/src/map.c:81:4:map_obs	3
+E:/STM32f4/doan_01/hardware/inc/map.h:27:19:_gx	1
+E:/STM32f4/doan_01/hardware/inc/map.h:28:19:_gy	1
+E:/STM32f4/doan_01/hardware/inc/map.h:29:19:_gv	5
+../hardware/src/map.c:16:6:map_init	1
+../hardware/src/map.c:22:13:_ray_free	10
+../hardware/src/map.c:47:6:map_update	8
+../hardware/src/map.c:69:6:map_mark_robot	7
+../hardware/src/map.c:85:4:map_obs	3
+../hardware/src/map.c:93:6:map_draw_oled	11

@@ -81,7 +81,7 @@ uint16_t di = 0;
 char uart_buf[200];
 u32 prev_10ms = 0;
 _vo u32 g_ms = 0;
- _vo float g_sp_v =0.15f,g_sp_w = 0.0f;
+ _vo float g_sp_v =0.0f,g_sp_w = 0.0f;
 i16 p_l ,p_r ;
 float sr ,sl ;
 _vo u8  Flag_Target ;
@@ -165,7 +165,7 @@ int main(void)
 
   Robot_Init();
 
-  Debug_Print2();
+  //Debug_Print2();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -179,7 +179,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	 Robot_Loop();
-	 Debug_Print();
+	 //Debug_Print();
 
 
 

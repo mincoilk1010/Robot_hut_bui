@@ -1,7 +1,7 @@
 #ifndef INC_NAV_H_
 #define INC_NAV_H_
 #include "types.h"
-
+#include "main.h"
 #define NAV_SPEED    0.15f
 #define NAV_ROW_M    0.30f
 #define NAV_MAX_ROWS 10
@@ -20,6 +20,7 @@ typedef struct{
     u32 t0; u8 done;
 }Nav_t;
 extern Nav_t nav;
+extern UART_HandleTypeDef huart1;
 void nav_init(void);
 void nav_task(void);
 

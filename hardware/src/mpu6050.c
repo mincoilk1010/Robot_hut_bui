@@ -217,6 +217,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     		}
     		PH_task();
     	    */
+    		/*
     		if (turn.state == TR_IDLE || turn.state == TR_DONE || turn.state == TR_TOUT)
     		{
     		    HeadingHold_Task();
@@ -225,6 +226,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     		{
     		    turn_task();
     		}
+    		*/
+    		//nav_task();
         	motorcontrol_pid();
 
         }

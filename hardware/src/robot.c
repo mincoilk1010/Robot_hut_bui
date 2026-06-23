@@ -8,6 +8,8 @@
 #include "main.h"
 #include "string.h"
 _vo u8  F = 0 ;
+u32 t = 0;
+extern I2C_HandleTypeDef hi2c3;
 void Robot_Init(void)
 {
     /* LED sáng trong khi init */
@@ -29,6 +31,11 @@ void Robot_Init(void)
     }
 
     startContinuous(0);
+    ssd1306_Init();
+    ssd1306_Fill(Black);
+    ssd1306_SetCursor(10, 25);
+    ssd1306_WriteString("ROBOT READY...", Font_7x10, White);
+    ssd1306_UpdateScreen(); // Đẩy dữ liệu chào mừng lên màn hình
     //OLED_Init();
     //ssd1306_SetCursor(10, 25);
     //ssd1306_WriteString("RADAR INIT...", Font_7x10, White);
@@ -44,6 +51,7 @@ void Robot_Init(void)
     /* LED tắt → bắt đầu chạy */
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
     startContinuous(0);
+
 
 
     //ervo_Init(&htim3, TIM_CHANNEL_1);
@@ -71,4 +79,11 @@ void Robot_Loop(void)
 
 		nav_task();
 	}
+/*
+	if(HAL_GetTick() - t > 200)
+	{
+		map_draw_oled();
+	}
+	*/
+
 }

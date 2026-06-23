@@ -14,8 +14,8 @@
 #include "types.h"
 #define SC_OBS_MM    400u   /* < 40cm → wide mode */
 #define SC_CLEAR_MM  600u   /* > 60cm × 5 → narrow mode */
-#define SC_N_MIN      40u
-#define SC_N_MAX     140u
+#define SC_N_MIN      60u
+#define SC_N_MAX     120u
 #define SC_W_MIN       0u
 #define SC_W_MAX     180u
 #define SC_STEP        5u
@@ -35,6 +35,7 @@ typedef struct{
     ScMode_t mode; ScSt_t state;
     u8 angle,amin,amax;
     u32 t_servo;
+    i8 dir;
     u16 data[37];          /* data[deg/5] */
     u8 done; u32 cycle;
     u8 clear_cnt;
@@ -50,4 +51,5 @@ u16     scanner_get(u8 deg);
 u16     scanner_front(void);
 u8      scanner_has_obs(void);
 ScMode_t scanner_mode(void);
+u8 scanner_wide_ready(void);
 #endif /* INC_VL53_SCAN_H_ */

@@ -8,7 +8,11 @@
 #include "string.h"
 #include "math.h"
 #include <stdlib.h>
+#include "ssd1306.h"
+#include "control.h"
 i8 grid[MAP_H_G][MAP_W];
+uint16_t Lidar_Map[181];
+uint16_t MAX_RADAR_DIST_MM;
 void map_init()
 {
     memset(grid, 0, sizeof(grid));
@@ -82,4 +86,69 @@ u8 map_obs(f32 wx, f32 wy)
 {
     int gx = _gx(wx) , gy = _gy(wy);
     return _gv(gx,gy) && grid[gy][gx] < -10;
+}
+#define OLED_MAP_OX   ((SSD1306_WIDTH  - MAP_W)    / 2)
+#define OLED_MAP_OY   ((SSD1306_HEIGHT - MAP_H_G)  / 2)
+
+void map_draw_oled(void)
+{
+    ssd1306_Fill(Black);
+
+    /* ===== GRID ===== */
+    for (int gy = 0; gy < MAP_H_G; gy++)
+    for (int gx = 0; gx < MAP_W; gx++)
+    {
+        if (grid[gy][gx] < -10)
+        {
+            uint8_t px = OLED_MAP_OX + gx;
+            uint8_t py = OLED_MAP_OY + (MAP_H_G - 1 - gy);
+            ssd1306_DrawPixel(px, py, White);
+        }
+    }
+
+    /* ===== ROBOT POSITION ===== */
+    int rgx = _gx(pose.x);
+    int rgy = _gy(pose.y);
+
+    if (!_gv(rgx, rgy))
+    {
+        ssd1306_UpdateScreen();
+        return;
+    }
+
+    uint8_t rpx = OLED_MAP_OX + rgx;
+    uint8_t rpy = OLED_MAP_OY + (MAP_H_G - 1 - rgy);
+
+    /* robot 3x3 */
+    for (int dy = -1; dy <= 1; dy++)
+    for (int dx = -1; dx <= 1; dx++)
+        ssd1306_DrawPixel(rpx + dx, rpy + dy, White);
+
+    /* heading */
+    float a = pose.theta;
+
+    int hx = rpx + (int)(cosf(a) * 6);
+    int hy = rpy - (int)(sinf(a) * 6);
+
+    ssd1306_Line(rpx, rpy, hx, hy, White);
+
+    /* ===== RADAR POINT CLOUD ===== */
+    for (int angle = 0; angle <= 180; angle += 10)
+    {
+        uint16_t dist = Lidar_Map[angle];
+
+        if (dist == 0 || dist > MAX_RADAR_DIST_MM)
+            continue;
+
+        float r = ((float)dist / MAX_RADAR_DIST_MM) * 6.0f;
+        float rad = angle * 3.1415926f / 180.0f;
+
+        int x = rpx + (int)(r * cosf(rad));
+        int y = rpy - (int)(r * sinf(rad));
+
+        if (_gv(x, y))
+            ssd1306_DrawPixel(x, y, White);
+    }
+
+    ssd1306_UpdateScreen();
 }

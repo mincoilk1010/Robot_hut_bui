@@ -19,12 +19,15 @@
 #include "hc_sr04.h"
 #include "mpu6050.h"
 #include "motor.h"
+#include "ssd1306.h"
+#include "ssd1306_fonts.h"
 //#include "servo.h"
 //#include "ssd1306.h"
 //#include "delay.h"
 //#include "OLED.h"
 
 //#include "ssd136_fonts.h"
+extern u32 t ;
 extern I2C_HandleTypeDef hi2c2;
 extern UART_HandleTypeDef huart1;
 void Robot_Init(void);

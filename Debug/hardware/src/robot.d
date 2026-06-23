@@ -42,7 +42,10 @@ hardware/src/robot.o: ../hardware/src/robot.c \
  E:/STM32f4/doan_01/hardware/inc/map.h \
  E:/STM32f4/doan_01/hardware/inc/vl53_scan.h \
  E:/STM32f4/doan_01/hardware/inc/avoid.h \
- E:/STM32f4/doan_01/hardware/inc/hc_sr04.h
+ E:/STM32f4/doan_01/hardware/inc/hc_sr04.h \
+ E:/STM32f4/doan_01/hardware/inc/ssd1306.h \
+ E:/STM32f4/doan_01/hardware/inc/ssd1306_conf.h \
+ E:/STM32f4/doan_01/hardware/inc/ssd1306_fonts.h
 E:/STM32f4/doan_01/hardware/inc/robot.h:
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
@@ -88,3 +91,6 @@ E:/STM32f4/doan_01/hardware/inc/map.h:
 E:/STM32f4/doan_01/hardware/inc/vl53_scan.h:
 E:/STM32f4/doan_01/hardware/inc/avoid.h:
 E:/STM32f4/doan_01/hardware/inc/hc_sr04.h:
+E:/STM32f4/doan_01/hardware/inc/ssd1306.h:
+E:/STM32f4/doan_01/hardware/inc/ssd1306_conf.h:
+E:/STM32f4/doan_01/hardware/inc/ssd1306_fonts.h:
