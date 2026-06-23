@@ -9,9 +9,9 @@
 ../hardware/src/control.c:152:6:pid_setup	1
 ../hardware/src/control.c:158:6:motorcontrol_pid	15
 ../hardware/src/control.c:339:14:_norm	3
-../hardware/src/control.c:342:6:turn_start	2
-../hardware/src/control.c:382:6:turn_task	31
-../hardware/src/control.c:475:7:turn_done	1
-../hardware/src/control.c:476:7:turn_final_yaw	1
-../hardware/src/control.c:477:7:turn_residual	1
-../hardware/src/control.c:478:7:angle_diff	3
+../hardware/src/control.c:347:6:turn_start	3
+../hardware/src/control.c:390:6:turn_task	36
+../hardware/src/control.c:494:7:turn_done	1
+../hardware/src/control.c:495:7:turn_final_yaw	1
+../hardware/src/control.c:496:7:turn_residual	2
+../hardware/src/control.c:500:7:angle_diff	3

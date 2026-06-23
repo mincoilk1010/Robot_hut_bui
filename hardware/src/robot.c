@@ -7,7 +7,6 @@
 #include "robot.h"
 #include "main.h"
 #include "string.h"
-_vo u8  F = 0 ;
 u32 t = 0;
 extern I2C_HandleTypeDef hi2c3;
 void Robot_Init(void)
@@ -19,6 +18,7 @@ void Robot_Init(void)
    // delay_init();
     pid_setup();
     Kinematics_reset();
+    map_init();
     /* VL53L0X */
 
     if(initVL53L0X(1, &hi2c2) != 1) {
@@ -44,19 +44,14 @@ void Robot_Init(void)
     mpu6050_Init();
     mpu6050_Calibrate();
     hcsr04_init();
+
+    /* Scanner controls TIM3 CH1 directly; Servo.c is intentionally unused. */
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
     scanner_init();
 
-    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
     nav_init();
     /* LED tắt → bắt đầu chạy */
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
-    startContinuous(0);
-
-
-
-    //ervo_Init(&htim3, TIM_CHANNEL_1);
-    //Servo_WriteAngle(0);
-
 }
 void Robot_Loop(void)
 {
@@ -73,12 +68,6 @@ void Robot_Loop(void)
 		hcsr04_read();
 	}
 
-	if(F)
-	{
-	    F = 0;
-
-		nav_task();
-	}
 /*
 	if(HAL_GetTick() - t > 200)
 	{

@@ -39,8 +39,8 @@ void motor_stop()
 
 void motor_run(i16 left_pwm, i16 right_pwm)
 {
-    left_pwm = limit(left_pwm,999,-999);
-    right_pwm = limit(right_pwm,999,-999);
+    left_pwm = limit(left_pwm,-999,999);
+    right_pwm = limit(right_pwm,-999,999);
 
     if (left_pwm > 0)
     {

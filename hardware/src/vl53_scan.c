@@ -6,15 +6,11 @@
 Scanner_t sc = {0};
 u16 d = 0;
 
-/* ★ mốc sc.cycle tại thời điểm vào WIDE — dùng để nav.c biết khi nào
- * đã quét xong ÍT NHẤT 1 vòng wide MỚI (dữ liệu mới, đáng tin) kể từ
- * lúc bắt đầu né, tránh quyết định hướng né dựa trên data còn rỗng/cũ. */
-static u32 _wide_entered_cycle = 0;
-
-void _svo(u8 deg)
+static void _svo(u8 deg)
 {
     if (deg > 180u) deg = 180u;
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 500 + (u32)deg*2000u/180u);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1,
+                          500u + (u32)deg * 2000u / 180u);
 }
 
 /* ★FIX: không còn reset sc.angle — chỉ đổi vùng quét (amin/amax).
@@ -40,13 +36,21 @@ static void _enter_wide(void)
      * lượm dữ liệu rác → chọn nhầm hướng né. Đặt lại 9999 (coi như
      * "chưa biết") để các hàm né phải đợi servo quét MỚI mới quyết
      * định, tránh xe quay nhầm hướng rồi cứ thế lặp lại.            */
-    for (int i = 0; i < 37; i++) sc.data[i] = 9999u;
-    _wide_entered_cycle = sc.cycle;   /* mốc nội bộ: nav.c hỏi qua scanner_wide_ready() */
+    sc.wide_valid_count = 0;
+    for (int i = 0; i < 37; i++) {
+        sc.data[i] = 9999u;
+        sc.stamp[i] = 0u;
+        sc.wide_valid[i] = 0u;
+    }
 }
 
 void scanner_init(void)
 {
-    for (int i = 0; i < 37; i++) sc.data[i] = 9999u;
+    for (int i = 0; i < 37; i++) {
+        sc.data[i] = 9999u;
+        sc.stamp[i] = 0u;
+        sc.wide_valid[i] = 0u;
+    }
     sc.mode  = SC_NARROW;
     sc.amin  = SC_N_MIN;
     sc.amax  = SC_N_MAX;
@@ -54,6 +58,7 @@ void scanner_init(void)
     sc.dir   = 1;            /* ★ bắt đầu quét lên (amin→amax) */
     sc.done  = 0;
     sc.cycle = 0;
+    sc.wide_valid_count = 0;
     _svo(sc.angle);
     HAL_Delay(50);
 }
@@ -81,17 +86,27 @@ void scanner_task(void)
         d = (uint16_t)readRangeContinuousMillimeters(0);
         if (d == 0 || d > 2000u) d = 9999u;
 
-        u8 idx = sc.angle / SC_STEP;
-        if (idx < 37u) sc.data[idx] = d;
-        map_update(pose.x, pose.y, pose.theta, (float)sc.angle, d);
-
         /* ── Chuyển NARROW→WIDE khi gặp vật gần ── chỉ đổi vùng quét,
          * KHÔNG đổi sc.angle/sc.dir → servo không bị giật.          */
         if (sc.mode == SC_NARROW && d < SC_OBS_MM) {
             _enter_wide();
         }
+
+        /* Save after _enter_wide(): that transition clears old scan data. */
+        u8 idx = sc.angle / SC_STEP;
+        if (idx < 37u) {
+            sc.data[idx] = d;
+            sc.stamp[idx] = now;
+            if (sc.mode == SC_WIDE && !sc.wide_valid[idx]) {
+                sc.wide_valid[idx] = 1u;
+                sc.wide_valid_count++;
+            }
+        }
+        map_update(pose.x, pose.y, pose.theta, (float)sc.angle, d);
+
         /* ── Quay lại NARROW sau 5 lần liên tục thấy thoáng ── */
-        if (sc.mode == SC_WIDE && sc.angle >= SC_N_MIN && sc.angle <= SC_N_MAX) {
+        if (sc.mode == SC_WIDE && sc.wide_valid_count >= 37u &&
+            sc.angle >= SC_N_MIN && sc.angle <= SC_N_MAX) {
             if (d > SC_CLEAR_MM) sc.clear_cnt++;
             else                 sc.clear_cnt = 0;
             if (sc.clear_cnt >= 5u) _enter_narrow();
@@ -132,19 +147,23 @@ void scanner_task(void)
 u16 scanner_get(u8 deg)
 {
     u8 i = deg / SC_STEP;
-    return i < 37u ? sc.data[i] : 9999u;
+    if (i >= 37u || sc.stamp[i] == 0u) return 9999u;
+    if ((u32)(HAL_GetTick() - sc.stamp[i]) > SC_SAMPLE_MAX_AGE_MS) return 9999u;
+    return sc.data[i];
 }
 u16 scanner_front(void) {
 	u16 d1 = scanner_get(85);
 	u16 d2 = scanner_get(90);
 	u16 d3 = scanner_get(95);
 
-	u16 min = d1;
+	/* Median rejects one low VL53L0X spike. Unknown/stale samples are
+	 * represented by 9999, so at least two fresh close rays are needed
+	 * before the front is considered blocked. */
+	if (d1 > d2) { u16 t = d1; d1 = d2; d2 = t; }
+	if (d2 > d3) { u16 t = d2; d2 = d3; d3 = t; }
+	if (d1 > d2) { u16 t = d1; d1 = d2; d2 = t; }
 
-	if(d2 < min) min = d2;
-	if(d3 < min) min = d3;
-
-	return min;
+	return d2;
 }
 
 u8 scanner_has_obs(void)
@@ -155,12 +174,8 @@ u8 scanner_has_obs(void)
 }
 ScMode_t scanner_mode(void) { return sc.mode; }
 
-/* Trả 1 khi: đang ở mode WIDE VÀ đã quét xong ít nhất 1 vòng đầy đủ
- * (sc.cycle tăng ít nhất 1 lần) kể từ lúc vừa vào WIDE. Trước đó,
- * sc.data[] có thể vẫn còn ô 9999 (chưa kịp quét tới) → chưa đáng
- * tin để chọn hướng né. nav.c PHẢI đợi hàm này trả 1 trước khi gọi
- * _pick_avoid_dir(), nếu không sẽ chọn nhầm hướng và quay lặp vô ích. */
+/* Ready only after every wide-scan bin has a fresh sample. */
 u8 scanner_wide_ready(void)
 {
-    return (sc.mode == SC_WIDE) && ((u32)(sc.cycle - _wide_entered_cycle) >= 1u);
+    return (sc.mode == SC_WIDE) && (sc.wide_valid_count >= 37u);
 }

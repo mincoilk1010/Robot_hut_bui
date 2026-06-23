@@ -79,7 +79,6 @@ void nav_task(void)
         g_sp_v=0;g_sp_w=0;
         if(now-nav.t0>250u){
 
-            HAL_Delay(30);
             float td=(nav.dir==1)?-90.0f:90.0f;
             turn_start(td);
             _nenter(N_TURN90);
@@ -109,7 +108,6 @@ void nav_task(void)
             g_sp_v=0;g_sp_w=0;_hh_itg=0;
             nav.row++;
             if(nav.row>=NAV_MAX_ROWS){_nenter(N_DONE);break;}
-            HAL_Delay(30);
             float td=(nav.dir==1)?-90.0f:90.0f;
             turn_start(td);
             nav.dir=-nav.dir;
@@ -133,11 +131,10 @@ void nav_task(void)
     case N_CLIFF:
         g_sp_v=-NAV_SPEED*0.5f;g_sp_w=0;
         if(now-nav.t0>600u){
-            g_sp_v=0;g_sp_w=0;HAL_Delay(30);
+            g_sp_v=0;g_sp_w=0;
             turn_start(90.0f);_nenter(N_TURN90);
         }
         break;
-
 
     case N_DONE:
         g_sp_v=0;g_sp_w=0;nav.done=1;
@@ -151,39 +148,44 @@ void nav_task(void)
 
 #include "nav.h"
 #include "control.h"
-#include "robot.h"
 #include "vl53_scan.h"
 #include "hc_sr04.h"
 #include "map.h"
 #include "avoid.h"
 #include <math.h>
-#include <stdio.h>
-#include "main.h"
-#include "string.h"
 
 Nav_t nav={.st=N_BOOT,.dir=1,.row=0,.lane_yaw=0,.x0=0,.y0=0,.t0=0,.done=0};
 
+static u8 _front_obs_cnt=0;
+static float _nav_v_cmd=0.0f;
+static float _pending_turn_deg=0.0f;
+static NavSt_t _pending_turn_state=N_TURN90;
+
 static void _nenter(NavSt_t s){
-	nav.st=s;nav.t0=HAL_GetTick();
+	nav.st=s;
+	nav.t0=HAL_GetTick();
+	_nav_v_cmd=0.0f;
 }
 
-static float _pick_avoid_angle(void)
+static float _ramp_speed(float target)
 {
-    Gap_t gap;
-
-    if(Avoid_FindBestGap(&gap))
-    {
-        if(gap.redirect_deg > 60.0f)
-            gap.redirect_deg = 60.0f;
-
-        if(gap.redirect_deg < -60.0f)
-            gap.redirect_deg = -60.0f;
-
-        return gap.redirect_deg;
-    }
-
-    return (nav.dir==1)?45.0f:-45.0f;
+    float step=NAV_ACCEL_MPS2*dt_s;
+    float dv=target-_nav_v_cmd;
+    if(dv>step) dv=step;
+    if(dv<-step) dv=-step;
+    _nav_v_cmd+=dv;
+    return _nav_v_cmd;
 }
+
+static void _schedule_turn(float delta_deg, NavSt_t turn_state)
+{
+    g_sp_v=0.0f;
+    g_sp_w=0.0f;
+    _pending_turn_deg=delta_deg;
+    _pending_turn_state=turn_state;
+    _nenter(N_TURN_WAIT);
+}
+
 static float _dist(void)
 {
 	float dx=pose.x-nav.x0,dy=pose.y-nav.y0;
@@ -195,13 +197,13 @@ static float _hh_itg=0;
 /* Thời gian tối đa đợi scan-wide quét xong 1 vòng mới trước khi vẫn
  * chọn hướng né (dự phòng, tránh kẹt vô hạn nếu scanner không bao
  * giờ vào WIDE vì lý do nào đó). */
-#define NAV_BRAKE_TOUT_MS 600u
+#define NAV_BRAKE_TOUT_MS 1800u
 
 static void _fwd_ctrl(void)
 {
     float ye=angle_diff(nav.lane_yaw,yaw);
     _hh_itg=limit(_hh_itg+ye*dt_s,-20.0f,20.0f);
-    g_sp_v=NAV_SPEED;
+    g_sp_v=_ramp_speed(NAV_SPEED);
     g_sp_w=limit(0.030f*ye+0.002f*_hh_itg,-0.40f,0.40f);
 }
 
@@ -257,16 +259,12 @@ void nav_init(void){
 
 void nav_task(void)
 {
-    char dbg[64];
     uint32_t now=HAL_GetTick();
 
     /* ── Cliff: ưu tiên ── đọc THẬT từ HC-SR04 đáy xe, không dùng
      * turn_final_yaw() (đó là góc yaw, không phải cờ phát hiện hố). */
     if(hcsr04_cliff_detected()&&(nav.st==N_FWD||nav.st==N_CROSS)){
         g_sp_v=0;g_sp_w=0;_hh_itg=0;_nenter(N_CLIFF);return;
-                    snprintf(dbg, sizeof(dbg), " mode=%ld\r\n",
-                                 (long)(_dist()*1000.0f), (int)scanner_mode());
-            HAL_UART_Transmit(&huart1, (uint8_t*)dbg, strlen(dbg), 50);
     }
 
     switch(nav.st){
@@ -275,11 +273,9 @@ void nav_task(void)
     case N_BOOT:
         g_sp_v=0;g_sp_w=0;
         if(now-nav.t0>100u){
+            _front_obs_cnt=0;
             nav.lane_yaw=yaw;nav.x0=pose.x;nav.y0=pose.y;
             _nenter(N_FWD);
-                                snprintf(dbg, sizeof(dbg), " dist_mm=%ld mode=%d\r\n",
-                                 (long)(_dist()*1000.0f), (int)scanner_mode());
-            HAL_UART_Transmit(&huart1, (uint8_t*)dbg, strlen(dbg), 50);
         }
         break;
 
@@ -288,17 +284,13 @@ void nav_task(void)
         _fwd_ctrl();
         u16 front=scanner_front();
         float dist=_dist();
-        if(dist>2.8f||nav.row>=NAV_MAX_ROWS||(front>0u&&front<NAV_OBS_MM)){
-            /* ★ DEBUG TẠM THỜI — in ra lý do thật gây brake, để xác định
-             * front có bị đọc nhầm giá trị nhỏ giả hay không. XOÁ đoạn
-             * này sau khi xác định xong nguyên nhân, tránh tốn thời gian
-             * UART trong loop chính khi đã chạy ổn định.    */
-            
-            snprintf(dbg, sizeof(dbg), "BRAKE: front=%u dist_mm=%ld mode=%d\r\n",
-                                front, (long)(_dist()*1000.0f), (int)scanner_mode());
-            HAL_UART_Transmit(&huart1, (uint8_t*)dbg, strlen(dbg), 50);
-
-
+        if(front < NAV_OBS_MM){
+            if(_front_obs_cnt < 2u) _front_obs_cnt++;
+        }else{
+            _front_obs_cnt=0;
+        }
+        if(dist>2.8f||nav.row>=NAV_MAX_ROWS||_front_obs_cnt>=2u){
+            _front_obs_cnt=0;
             g_sp_v=0;g_sp_w=0;_hh_itg=0;_nenter(N_BRAKE);
         }
         break;
@@ -318,11 +310,9 @@ void nav_task(void)
                 break;
             }
 
-            HAL_Delay(30);
             nav.dir=_pick_avoid_dir();
             float td=(nav.dir==1)?90.0f:-90.0f;
-            turn_start(td);
-            _nenter(N_TURN90);
+            _schedule_turn(td,N_TURN90);
         }
         /*
         g_sp_v = 0;
@@ -335,8 +325,6 @@ void nav_task(void)
             {
                 break;
             }
-
-            HAL_Delay(30);
 
             float td = _pick_avoid_angle();
 
@@ -353,6 +341,10 @@ void nav_task(void)
     case N_TURN90:
         turn_task();
         if(turn_done()){
+            if(turn.timeout){
+                g_sp_v=0;g_sp_w=0;nav.done=1;_nenter(N_DONE);
+                break;
+            }
             nav.lane_yaw=turn_final_yaw();  /* hướng khi đi ngang */
             nav.x0=pose.x;nav.y0=pose.y;
             g_sp_w=0;_hh_itg=0;
@@ -368,17 +360,15 @@ void nav_task(void)
             float v=(remain<0.08f)?NAV_SPEED*(remain/0.08f+0.2f):NAV_SPEED;
             float ye=angle_diff(nav.lane_yaw,yaw);
             _hh_itg=limit(_hh_itg+ye*dt_s,-15.0f,15.0f);
-            g_sp_v=limit(v,0.04f,NAV_SPEED);
+            g_sp_v=_ramp_speed(limit(v,0.04f,NAV_SPEED));
             g_sp_w=limit(0.030f*ye+0.002f*_hh_itg,-0.35f,0.35f);
         }else{
             g_sp_v=0;g_sp_w=0;_hh_itg=0;
             nav.row++;
             if(nav.row>=NAV_MAX_ROWS){_nenter(N_DONE);break;}
-            HAL_Delay(30);
             float td=(nav.dir==1)?-90.0f:90.0f;
-            turn_start(td);
             nav.dir=-nav.dir;
-            _nenter(N_TURN90B);
+            _schedule_turn(td,N_TURN90B);
         }
         break;
     }
@@ -387,6 +377,10 @@ void nav_task(void)
     case N_TURN90B:
         turn_task();
         if(turn_done()){
+            if(turn.timeout){
+                g_sp_v=0;g_sp_w=0;nav.done=1;_nenter(N_DONE);
+                break;
+            }
             nav.lane_yaw=turn_final_yaw();
             nav.x0=pose.x;nav.y0=pose.y;
             g_sp_w=0;_hh_itg=0;
@@ -396,21 +390,23 @@ void nav_task(void)
 
     /* ── Cliff: lùi ngắn rồi quay ── */
     case N_CLIFF:
-        g_sp_v=-NAV_SPEED*0.5f;g_sp_w=0;
+        g_sp_v=_ramp_speed(-NAV_SPEED*0.5f);g_sp_w=0;
         if(now-nav.t0>600u){
             g_sp_v=0;g_sp_w=0;
-            HAL_Delay(30);
-            turn_start(90.0f);
-            _nenter(N_TURN90);
+            _schedule_turn(90.0f,N_TURN90);
         }
         break;
 
-    /* ── Done: dừng + giữ vị trí ── */
+    case N_TURN_WAIT:
+        g_sp_v=0;g_sp_w=0;
+        if((u32)(now-nav.t0)>=NAV_STOP_SETTLE_MS){
+            turn_start(_pending_turn_deg);
+            _nenter(_pending_turn_state);
+        }
+        break;
+
     case N_DONE:
         g_sp_v=0;g_sp_w=0;nav.done=1;
-        PH_activate();
-
-
         break;
     }
 }

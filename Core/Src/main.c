@@ -178,7 +178,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	 Robot_Loop();
+	// Robot_Loop();
 	 //Debug_Print();
 
 
@@ -217,7 +217,7 @@ int main(void)
           }
       }
     */
-/*
+
 	  float d = (ec_l.dist + ec_r.dist) * 0.5f;
 
 	     if(state == 0)
@@ -243,9 +243,9 @@ int main(void)
 			}
 		}
 
-	     Debug_Print1();
+	   //  Debug_Print1();
 
-*/
+
   }
 
   /* USER CODE END 3 */

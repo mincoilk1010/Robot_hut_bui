@@ -50,7 +50,6 @@ extern _vo float g_sp_v,g_sp_w;
 extern i16 p_l ,p_r ;
 extern float sr ,sl ;
 extern _vo u8  Flag ;
-extern _vo u8  F ;
 extern f32 prev_dist_l, prev_dist_r ;
 extern float heading_target;
 void HeadingHold_Task(void);
@@ -98,6 +97,8 @@ typedef struct {
     float  err_old;
     float  yaw_final;   
     float  w_cmd;      
+    float  yaw_start;
+    float  delta_cmd;
     int8_t dir;         
     uint32_t t0, t_settle;
     uint8_t  done, timeout;

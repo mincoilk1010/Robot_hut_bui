@@ -20,6 +20,7 @@
 #define SC_W_MAX     180u
 #define SC_STEP        5u
 #define SC_WAIT_MS    22u   /* servo settle */
+#define SC_SAMPLE_MAX_AGE_MS 400u
 
 typedef enum{
     SC_IDLE,
@@ -37,6 +38,9 @@ typedef struct{
     u32 t_servo;
     i8 dir;
     u16 data[37];          /* data[deg/5] */
+    u32 stamp[37];         /* time each direction was measured */
+    u8 wide_valid[37];     /* measured since entering wide mode */
+    u8 wide_valid_count;
     u8 done; u32 cycle;
     u8 clear_cnt;
 } Scanner_t;
@@ -44,7 +48,6 @@ extern Scanner_t sc;
 
 extern TIM_HandleTypeDef htim3;
 extern u16 d;
-void _svo(u8 deg);
 void    scanner_init(void);
 void    scanner_task(void);
 u16     scanner_get(u8 deg);

@@ -122,6 +122,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 
 				}
 				hc[0].done = 1; // bao timer do xong
+				hc[0].busy = 0;
 				hc[0].first_cap = 0;
 				TIM1->CCER &= ~(1 << 1); //  falling edge
 				
@@ -134,7 +135,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 			{
 				hc[1].val1 = TIM1->CCR2;
 				hc[1].first_cap = 1;
-				TIM1->CCER |= (1 << 2);
+				TIM1->CCER |= (1 << 5); /* CC2P: capture falling edge */
 			}
 			else
 			{
@@ -156,8 +157,9 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 					hc[1].d = (u16)(hc[1].diff * 17 / 100);
 				}
 				hc[1].done = 1;
+				hc[1].busy = 0;
 				hc[1].first_cap = 0;
-				TIM1->CCER &= ~(1<<2);
+				TIM1->CCER &= ~(1<<5); /* CC2P: back to rising edge */
 				
 			}
 		}

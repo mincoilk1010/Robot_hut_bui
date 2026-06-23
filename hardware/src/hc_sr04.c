@@ -21,7 +21,7 @@ void hcsr04_read()
 	TIM1->DIER |= (1 << 1);  /* CC1IE */
     TIM1->DIER |= (1 << 2);  /* CC2IE */
     TIM1->CCER &= ~(1 << 1); /* dam bao dang o rising cho CH1 (CC1P = 0) */
-    TIM1->CCER &= ~(1 << 2); /* dam bao dang o rising cho CH2 (CC2P = 0) */
+    TIM1->CCER &= ~(1 << 5); /* dam bao dang o rising cho CH2 (CC2P = 0) */
     //set HIGH, resigter BSRR
 	GPIOE->BSRR = (1 << 10) | (1 << 12) ;
 	delay_us(10);
@@ -50,7 +50,7 @@ void hcsr04_check_timeout(void)
                 }
                 else
                 {
-                    TIM1->CCER &= ~(1 << 2);
+                    TIM1->CCER &= ~(1 << 5);
                 }
             }
         }

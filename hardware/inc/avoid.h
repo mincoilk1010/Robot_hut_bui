@@ -11,9 +11,9 @@
 #include "types.h"
  
 
-#define ROBOT_WIDTH_M     0.20f   /* chiều rộng thân xe */
+#define ROBOT_WIDTH_M     0.23f   /* chiều rộng thân xe: 23 cm */
 #define SAFETY_MARGIN_M   0.10f   /* biên an toàn 2 bên */
-#define MIN_GAP_M         (ROBOT_WIDTH_M + SAFETY_MARGIN_M) /* 0.30m */
+#define MIN_GAP_M         (ROBOT_WIDTH_M + SAFETY_MARGIN_M) /* 0.33 m */
  
 /* Ngưỡng coi là "thoáng" khi tìm gap (mm) */
 #define GAP_CLEAR_MM      450u

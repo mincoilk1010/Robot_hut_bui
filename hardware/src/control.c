@@ -338,14 +338,22 @@ float turn_residual(void)
      
 static float _norm(float a)
 { while(a>180.0f)a-=360.0f; while(a<=-180.0f)a+=360.0f; return a; }
+
+/* Relationship between positive chassis w and the installed MPU yaw sign.
+ * It is learned on the first turn, so mounting the MPU with Z inverted does
+ * not turn the yaw loop into positive feedback. */
+static float _turn_yaw_sign = 0.0f;
  
 void turn_start(float delta_deg)
 {
     delta_deg = _norm(delta_deg);
- 
-    turn.yaw_t    = _norm(yaw + delta_deg);
-    turn.err      = delta_deg;
-    turn.err_old  = delta_deg;
+
+    turn.yaw_start = yaw;
+    turn.delta_cmd = delta_deg;
+    turn.yaw_t    = _norm(yaw + delta_deg *
+                          ((_turn_yaw_sign == 0.0f) ? 1.0f : _turn_yaw_sign));
+    turn.err      = _norm(turn.yaw_t - yaw);
+    turn.err_old  = turn.err;
     turn.dir      = (delta_deg >= 0.0f) ? 1 : -1;
     turn.w_cmd    = 0.0f;       /* bắt đầu từ 0 — ACCEL sẽ ramp lên */
     turn.done     = 0;
@@ -392,7 +400,7 @@ void turn_task(void)
     }
  
     float err = _norm(turn.yaw_t - yaw);
-    float d_err = (err - turn.err_old) / dt_s;
+    float d_err = _norm(err - turn.err_old) / dt_s;
     turn.err_old = err;
     turn.err = err;
  
@@ -408,14 +416,25 @@ void turn_task(void)
         turn.w_cmd += dw;
         g_sp_v = 0.0f;
         g_sp_w = turn.w_cmd;
- 
-        if ((now - turn.t0) >= TR_ACCEL_MS || ABS_F(err) < TR_SLOW_DEG)
+
+        if (_turn_yaw_sign == 0.0f) {
+            float moved = _norm(yaw - turn.yaw_start);
+            if (ABS_F(moved) >= 1.0f) {
+                _turn_yaw_sign = (moved * (float)turn.dir >= 0.0f) ? 1.0f : -1.0f;
+                turn.yaw_t = _norm(turn.yaw_start + turn.delta_cmd * _turn_yaw_sign);
+                turn.err = _norm(turn.yaw_t - yaw);
+                turn.err_old = turn.err;
+            }
+        }
+
+        if (_turn_yaw_sign != 0.0f &&
+            ((now - turn.t0) >= TR_ACCEL_MS || ABS_F(turn.err) < TR_SLOW_DEG))
             turn.state = TR_RUN;
         break;
     }
  
     case TR_RUN: {
-        float w = TR_KP*err + TR_KD*d_err;
+        float w = _turn_yaw_sign * (TR_KP*err + TR_KD*d_err);
  
         /* ★ Decel zone: scale êm khi gần đích — đây là phần code cũ
          *   khai báo TR_SLOW_DEG nhưng KHÔNG hề dùng tới */
@@ -474,7 +493,10 @@ void turn_task(void)
  
 u8    turn_done(void)      { return turn.done; }
 float turn_final_yaw(void) { return turn.yaw_final; }
-float turn_residual(void)  { return _norm(turn.yaw_t - turn.yaw_final); }
+float turn_residual(void)  {
+    float r = _norm(turn.yaw_t - turn.yaw_final);
+    return (_turn_yaw_sign == 0.0f) ? r : r * _turn_yaw_sign;
+}
 float angle_diff(float t,float c)
 {
 	float d=t-c;
