@@ -15,12 +15,12 @@ uint16_t Lidar_GetDist() {
 //=====================================================DI CHUYEN===============================================================
 
 //=============================================================================================================================
-void Nav_Motor_Forward(void ); //Chay tien
-void Nav_Motor_Reverse(void ); //Chay lui
-void Nav_Motor_Stop(void);  //Phanh
-void Nav_MPU_Turn(int angle); //Quay xe
-void Nav_Encoder_Reset(void); //Reset encoder ve 0
-float Nav_Encoder_Get_Dist(void); //Lay gia tri encoder da di duoc tinh tu luc reset
+void Nav_Motor_Forward(void){}; //Chay tien
+void Nav_Motor_Reverse(void){}; //Chay lui
+void Nav_Motor_Stop(void){};  //Phanh
+void Nav_MPU_Turn(int angle){}; //Quay xe
+void Nav_Encoder_Reset(void){}; //Reset encoder ve 0
+float Nav_Encoder_Get_Dist(void){}; //Lay gia tri encoder da di duoc tinh tu luc reset
 
 //Bo loc khong gian
 
