@@ -177,18 +177,59 @@ void ssd1306_Fill(SSD1306_COLOR color) {
 }
 
 /* Write the screenbuffer with changed to the screen */
-void ssd1306_UpdateScreen(void) {
+/*void ssd1306_UpdateScreen(void) {
     // Write data to each page of RAM. Number of pages
     // depends on the screen height:
     //
     //  * 32px   ==  4 pages
     //  * 64px   ==  8 pages
     //  * 128px  ==  16 pages
+    
     for(uint8_t i = 0; i < SSD1306_HEIGHT/8; i++) {
         ssd1306_WriteCommand(0xB0 + i); // Set the current RAM page address.
         ssd1306_WriteCommand(0x00 + SSD1306_X_OFFSET_LOWER);
         ssd1306_WriteCommand(0x10 + SSD1306_X_OFFSET_UPPER);
-        ssd1306_WriteData(&SSD1306_Buffer[SSD1306_WIDTH*i],SSD1306_WIDTH);
+        
+        //code thu vien cu (su dung CPU)
+        //ssd1306_WriteData(&SSD1306_Buffer[SSD1306_WIDTH*i],SSD1306_WIDTH);
+
+        //code thu vien moi (su dung DMA)
+        // --- THAY BẰNG LỆNH GỬI DMA ---
+        #if defined(SSD1306_USE_I2C)
+            // Quăng việc gửi 128 byte màn hình cho bộ DMA xử lý
+            HAL_I2C_Mem_Write_DMA(&SSD1306_I2C_PORT, SSD1306_I2C_ADDR, 0x40, 1, 
+                                  &SSD1306_Buffer[SSD1306_WIDTH*i], SSD1306_WIDTH);
+            
+            // Ép CPU chờ nhẹ ở đây để DMA gửi dứt điểm trang (page) hiện tại 
+            // trước khi vòng lặp for quay lại cấu hình địa chỉ trang tiếp theo
+            while (HAL_I2C_GetState(&SSD1306_I2C_PORT) != HAL_I2C_STATE_READY) {}
+            
+        #elif defined(SSD1306_USE_SPI)
+            // Giữ lại dự phòng nếu sau này bạn đổi sang dùng màn hình SPI
+            ssd1306_WriteData(&SSD1306_Buffer[SSD1306_WIDTH*i],SSD1306_WIDTH);
+        #endif
+            }
+} */
+
+void ssd1306_UpdateScreen(void) {
+    for(uint8_t i = 0; i < SSD1306_HEIGHT/8; i++) {
+        ssd1306_WriteCommand(0xB0 + i); 
+        ssd1306_WriteCommand(0x00 + SSD1306_X_OFFSET_LOWER);
+        ssd1306_WriteCommand(0x10 + SSD1306_X_OFFSET_UPPER);
+        
+        // Kiểm tra xem lệnh gọi DMA có thành công (HAL_OK) hay không
+        if (HAL_I2C_Mem_Write_DMA(&SSD1306_I2C_PORT, SSD1306_I2C_ADDR, 0x40, 1, 
+                                  &SSD1306_Buffer[SSD1306_WIDTH*i], SSD1306_WIDTH) == HAL_OK) {
+            
+            // THÊM BỘ ĐẾM TIMEOUT ĐỂ CHỐNG TREO CỨNG CPU
+            uint32_t dma_timeout = 100000; 
+            while (HAL_I2C_GetState(&SSD1306_I2C_PORT) != HAL_I2C_STATE_READY) {
+                dma_timeout--;
+                if (dma_timeout == 0) {
+                    break; // Thoát ra ngay nếu quá thời gian chờ, không cho phép treo mạch
+                }
+            }
+        }
     }
 }
 
