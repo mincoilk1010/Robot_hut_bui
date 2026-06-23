@@ -11,7 +11,6 @@
 
 #include "vl53_scan.h"
 #include "hc_sr04.h"
-#include "map.h"
 #include <math.h>
 
 Nav_t nav={N_BOOT,1,0,0,0,0,0,0};
@@ -150,7 +149,6 @@ void nav_task(void)
 #include "control.h"
 #include "vl53_scan.h"
 #include "hc_sr04.h"
-#include "map.h"
 #include "avoid.h"
 #include <math.h>
 

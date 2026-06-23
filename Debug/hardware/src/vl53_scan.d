@@ -32,7 +32,6 @@ hardware/src/vl53_scan.o: ../hardware/src/vl53_scan.c \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h \
  ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h \
- E:/STM32f4/doan_01/hardware/inc/map.h \
  E:/STM32f4/doan_01/hardware/inc/control.h \
  E:/STM32f4/doan_01/hardware/inc/pid.h \
  E:/STM32f4/doan_01/hardware/inc/motor.h \
@@ -73,7 +72,6 @@ E:/STM32f4/doan_01/hardware/inc/VL53L0X.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h:
-E:/STM32f4/doan_01/hardware/inc/map.h:
 E:/STM32f4/doan_01/hardware/inc/control.h:
 E:/STM32f4/doan_01/hardware/inc/pid.h:
 E:/STM32f4/doan_01/hardware/inc/motor.h:

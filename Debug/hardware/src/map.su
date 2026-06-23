@@ -1,9 +1,0 @@
-E:/STM32f4/doan_01/hardware/inc/map.h:27:19:_gx	16	static
-E:/STM32f4/doan_01/hardware/inc/map.h:28:19:_gy	16	static
-E:/STM32f4/doan_01/hardware/inc/map.h:29:19:_gv	16	static
-../hardware/src/map.c:16:6:map_init	8	static
-../hardware/src/map.c:22:13:_ray_free	48	static
-../hardware/src/map.c:47:6:map_update	88	static
-../hardware/src/map.c:69:6:map_mark_robot	40	static
-../hardware/src/map.c:85:4:map_obs	24	static
-../hardware/src/map.c:93:6:map_draw_oled	96	static

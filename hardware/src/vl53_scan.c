@@ -1,5 +1,4 @@
 #include "vl53_scan.h"
-#include "map.h"
 #include "control.h"
 #include <math.h>
 
@@ -102,7 +101,7 @@ void scanner_task(void)
                 sc.wide_valid_count++;
             }
         }
-        map_update(pose.x, pose.y, pose.theta, (float)sc.angle, d);
+        
 
         /* ── Quay lại NARROW sau 5 lần liên tục thấy thoáng ── */
         if (sc.mode == SC_WIDE && sc.wide_valid_count >= 37u &&
@@ -126,7 +125,6 @@ void scanner_task(void)
                 sc.dir = -1;                 /* đảo hướng, KHÔNG nhảy cóc */
                 if (sc.angle > sc.amin) sc.angle -= SC_STEP;
                 sc.done = 1; sc.cycle++;      /* vừa quét hết 1 lượt lên */
-                map_mark_robot(pose.x, pose.y);
             }
         } else {
             if (sc.angle > sc.amin) {
@@ -135,7 +133,6 @@ void scanner_task(void)
                 sc.dir = 1;
                 if (sc.angle < sc.amax) sc.angle += SC_STEP;
                 sc.done = 1; sc.cycle++;      /* vừa quét hết 1 lượt xuống */
-                map_mark_robot(pose.x, pose.y);
             }
         }
         sc.state = SC_MOVE;

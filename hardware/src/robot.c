@@ -18,7 +18,6 @@ void Robot_Init(void)
    // delay_init();
     pid_setup();
     Kinematics_reset();
-    map_init();
     /* VL53L0X */
 
     if(initVL53L0X(1, &hi2c2) != 1) {
@@ -31,15 +30,11 @@ void Robot_Init(void)
     }
 
     startContinuous(0);
-    ssd1306_Init();
-    ssd1306_Fill(Black);
-    ssd1306_SetCursor(10, 25);
-    ssd1306_WriteString("ROBOT READY...", Font_7x10, White);
-    ssd1306_UpdateScreen(); // Đẩy dữ liệu chào mừng lên màn hình
-    //OLED_Init();
-    //ssd1306_SetCursor(10, 25);
-    //ssd1306_WriteString("RADAR INIT...", Font_7x10, White);
-    //ssd1306_UpdateScreen();
+    OLED_Init();
+    ssd1306_SetCursor(10, 20);
+    ssd1306_WriteString("ROBOT READY", Font_7x10, White);
+    ssd1306_UpdateScreen();
+    HAL_Delay(1000);
 
     mpu6050_Init();
     mpu6050_Calibrate();
@@ -68,10 +63,10 @@ void Robot_Loop(void)
 		hcsr04_read();
 	}
 
-/*
-	if(HAL_GetTick() - t > 200)
-	{
-		map_draw_oled();
+	/*
+	if((u32)(now_hc - t) >= 150u){
+		t = now_hc;
+		OLED_DrawRadarMap();
 	}
 	*/
 

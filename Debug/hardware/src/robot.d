@@ -39,10 +39,10 @@ hardware/src/robot.o: ../hardware/src/robot.c \
  E:/STM32f4/doan_01/hardware/inc/delay.h \
  E:/STM32f4/doan_01/hardware/inc/VL53L0X.h \
  E:/STM32f4/doan_01/hardware/inc/nav.h \
- E:/STM32f4/doan_01/hardware/inc/map.h \
  E:/STM32f4/doan_01/hardware/inc/vl53_scan.h \
  E:/STM32f4/doan_01/hardware/inc/avoid.h \
  E:/STM32f4/doan_01/hardware/inc/hc_sr04.h \
+ E:/STM32f4/doan_01/hardware/inc/OLED.h \
  E:/STM32f4/doan_01/hardware/inc/ssd1306.h \
  E:/STM32f4/doan_01/hardware/inc/ssd1306_conf.h \
  E:/STM32f4/doan_01/hardware/inc/ssd1306_fonts.h
@@ -87,10 +87,10 @@ E:/STM32f4/doan_01/hardware/inc/mpu6050.h:
 E:/STM32f4/doan_01/hardware/inc/delay.h:
 E:/STM32f4/doan_01/hardware/inc/VL53L0X.h:
 E:/STM32f4/doan_01/hardware/inc/nav.h:
-E:/STM32f4/doan_01/hardware/inc/map.h:
 E:/STM32f4/doan_01/hardware/inc/vl53_scan.h:
 E:/STM32f4/doan_01/hardware/inc/avoid.h:
 E:/STM32f4/doan_01/hardware/inc/hc_sr04.h:
+E:/STM32f4/doan_01/hardware/inc/OLED.h:
 E:/STM32f4/doan_01/hardware/inc/ssd1306.h:
 E:/STM32f4/doan_01/hardware/inc/ssd1306_conf.h:
 E:/STM32f4/doan_01/hardware/inc/ssd1306_fonts.h:
