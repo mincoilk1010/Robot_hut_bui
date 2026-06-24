@@ -30,7 +30,7 @@ void OLED_DrawRadarMap(void)
     /* Draw scanner bins directly; no occupancy map is required. */
     for (int angle = SC_W_MIN; angle <= SC_W_MAX; angle += SC_STEP) {
         uint16_t dist = sc.data[angle / SC_STEP];
-        if (dist == 0u || dist == 9999u || dist > MAX_RADAR_DIST_MM) {
+        if (dist == 0u || dist > MAX_RADAR_DIST_MM) {
             prev_x = -1;
             prev_y = -1;
             continue;

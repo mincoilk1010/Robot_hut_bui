@@ -14,33 +14,67 @@
 Pose_t pose ;
 PH_t ph = {0};
 
+static float _turn_yaw_sign = 0.0f;
+static float heading_integral = 0.0f;
+static float heading_gyro_filt = 0.0f;
+static float heading_w_cmd = 0.0f;
+
+void HeadingHold_SetTarget(float target_deg)
+{
+    while(target_deg > 180.0f) target_deg -= 360.0f;
+    while(target_deg <= -180.0f) target_deg += 360.0f;
+
+    heading_target = target_deg;
+    /* A new heading is a new control manoeuvre: do not retain old wind-up. */
+    heading_integral = 0.0f;
+    heading_gyro_filt = GZ - GZ_calib;
+    heading_w_cmd = 0.0f;
+}
+
 void HeadingHold_Task(void)
 {
-    static float err_old = 0.0f;
-
-
     float err = mpu6050_angleDiff(heading_target, yaw);
+    float gyro_z = GZ - GZ_calib;
+    heading_gyro_filt += HH_GYRO_ALPHA * (gyro_z - heading_gyro_filt);
 
+    /* More forward speed needs slightly stronger, not weaker, correction. */
+    float speed_ratio = fabsf(g_sp_v) / PH_MAX_V;
+    speed_ratio = limit(speed_ratio, 0.0f, 1.0f);
+    float kp = HH_KP_BASE + HH_KP_SPEED * speed_ratio;
 
-    float derr = (err - err_old) / dt_s;
-    err_old = err;
+    float err_ctrl = err;
+    if (fabsf(err_ctrl) < HH_DEADBAND_DEG) {
+        err_ctrl = 0.0f;
+        heading_integral *= 0.90f;
+    } else {
+        heading_integral += err_ctrl * dt_s;
+        heading_integral = limit(heading_integral, -HH_I_MAX, HH_I_MAX);
+    }
 
+    /* Gyro rate is a cleaner damping signal than differentiating noisy yaw. */
+    float w_sensor = kp * err_ctrl
+                   + HH_KI * heading_integral
+                   - HH_KD * heading_gyro_filt;
+    float yaw_sign = (_turn_yaw_sign == 0.0f) ? YAW_CMD_SIGN_DEFAULT
+                                               : _turn_yaw_sign;
+    float w_target = limit(yaw_sign * w_sensor, -HH_W_MAX, HH_W_MAX);
 
-    float speed_factor = 1.0f - fabsf(g_sp_v) / PH_MAX_V;
-    if(speed_factor < 0.3f) speed_factor = 0.3f;
-    if(fabsf(err) < DEG2RAD(10.0f)) speed_factor *= 0.6f;
-    float kp = 0.04f * speed_factor;
-    float kd = 0.0025f;
+    if (fabsf(err) < HH_DEADBAND_DEG &&
+        fabsf(heading_gyro_filt) < HH_RATE_DEADBAND) {
+        w_target = 0.0f;
+        heading_integral = 0.0f;
+    }
 
+    /* Slew limiting prevents alternating wheel commands on successive ticks. */
+    float max_step = HH_W_ACCEL * dt_s;
+    float dw = w_target - heading_w_cmd;
+    dw = limit(dw, -max_step, max_step);
+    heading_w_cmd += dw;
 
-    float kff = 0.01f;
-    float ff = kff * g_sp_v;
+    if (w_target == 0.0f && fabsf(heading_w_cmd) < max_step)
+        heading_w_cmd = 0.0f;
 
-
-    g_sp_w =kp * err +kd * derr +ff;
-
-
-    g_sp_w = limit(g_sp_w, -1.2f, 1.2f);
+    g_sp_w = heading_w_cmd;
 }
 
 void PH_activate()
@@ -241,109 +275,12 @@ void motorcontrol_pid()
 Turn_t turn = {0};
 
 
-/*
-void turn_start(float delta_deg)
-{
 
-    while (delta_deg >  180.0f) delta_deg -= 360.0f;
-    while (delta_deg <= -180.0f) delta_deg += 360.0f;
-
-    turn.yaw_t    = yaw + delta_deg;
-    while(turn.yaw_t > 180.0f) turn.yaw_t -= 360.0f;
-
-    while(turn.yaw_t <= -180.0f)turn.yaw_t += 360.0f;
-    turn.err      = delta_deg;
-    turn.err_old  = delta_deg;
-    turn.dir      = (delta_deg >= 0.0f) ? 1 : -1;
-    turn.done     = 0;
-    turn.timeout  = 0;
-    turn.t0       = HAL_GetTick();
-    turn.t_settle = 0;
-    turn.state    = TR_RUN;
-
-    g_sp_v = 0.0f;
-}
-
-void turn_task(void)
-{
-    if (turn.state == TR_IDLE || turn.state == TR_DONE || turn.state == TR_TOUT)
-        return;
-
-    if ((u32)(HAL_GetTick() - turn.t0) > TURN_TIMEOUT_MS)
-    {
-        g_sp_v = 0.0f; g_sp_w = 0.0f;
-        turn.state   = TR_TOUT;
-        turn.done    = 1;
-        turn.timeout = 1;
-        return;
-    }
-
-    float err = turn.yaw_t - yaw;
-    while (err >  180.0f) err -= 360.0f;
-    while (err <= -180.0f) err += 360.0f;
-    turn.err = err;
-    float d_err = (err - turn.err_old) / dt_s;
-    turn.err_old = err;
-    float w = TR_KP * err + TR_KD * d_err;
-
-    float w_abs = ABS_F(w);
-    if (w_abs < TR_W_MIN && w_abs > 0.001f)
-        w = (w > 0.0f) ? TR_W_MIN : -TR_W_MIN;
-    if (w_abs > TR_W_MAX)
-        w = (w > 0.0f) ? TR_W_MAX : -TR_W_MAX;
-    turn.w_cmd = w;
-
-    if (ABS_F(err) < TR_DONE_DEG)
-    {
-        if (turn.state != TR_SETTLE)
-        {
-            turn.state    = TR_SETTLE;
-            turn.t_settle = HAL_GetTick();
-        }
-
-        g_sp_w = 0.0f;
-
-        if ((u32)(HAL_GetTick() - turn.t_settle) >= TURN_SETTLE_MS)
-        {
-            turn.yaw_final = yaw;
-            g_sp_v = 0.0f; g_sp_w = 0.0f;
-            turn.state = TR_DONE;
-            turn.done  = 1;
-        }
-        return;
-    }
-    turn.state = TR_RUN;
-    g_sp_v = 0.0f;
-    g_sp_w = w;
-}
- 
-u8 turn_done(void)
-{
-    return turn.done;
-}
-
-float turn_final_yaw(void)
-{
-    return turn.yaw_final;
-}
-
-float turn_residual(void)
-{
-    float r = turn.yaw_t - turn.yaw_final;
-    while (r >  180.0f) r -= 360.0f;
-    while (r <= -180.0f) r += 360.0f;
-    return r;
-}
-    */
      
 static float _norm(float a)
 { while(a>180.0f)a-=360.0f; while(a<=-180.0f)a+=360.0f; return a; }
 
-/* Relationship between positive chassis w and the installed MPU yaw sign.
- * It is learned on the first turn, so mounting the MPU with Z inverted does
- * not turn the yaw loop into positive feedback. */
-static float _turn_yaw_sign = 0.0f;
- 
+
 void turn_start(float delta_deg)
 {
     delta_deg = _norm(delta_deg);
@@ -351,7 +288,8 @@ void turn_start(float delta_deg)
     turn.yaw_start = yaw;
     turn.delta_cmd = delta_deg;
     turn.yaw_t    = _norm(yaw + delta_deg *
-                          ((_turn_yaw_sign == 0.0f) ? 1.0f : _turn_yaw_sign));
+                          ((_turn_yaw_sign == 0.0f) ? YAW_CMD_SIGN_DEFAULT
+                                                    : _turn_yaw_sign));
     turn.err      = _norm(turn.yaw_t - yaw);
     turn.err_old  = turn.err;
     turn.dir      = (delta_deg >= 0.0f) ? 1 : -1;

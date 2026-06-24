@@ -14,8 +14,8 @@
 #include "types.h"
 #define SC_OBS_MM    400u   /* < 40cm → wide mode */
 #define SC_CLEAR_MM  600u   /* > 60cm × 5 → narrow mode */
-#define SC_N_MIN      60u
-#define SC_N_MAX     120u
+#define SC_N_MIN      50u
+#define SC_N_MAX     130u
 #define SC_W_MIN       0u
 #define SC_W_MAX     180u
 #define SC_STEP        5u

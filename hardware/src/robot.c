@@ -12,7 +12,7 @@ extern I2C_HandleTypeDef hi2c3;
 void Robot_Init(void)
 {
     /* LED sáng trong khi init */
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
     motor_init(7,1000);
     encoder_init();
    // delay_init();
@@ -46,15 +46,13 @@ void Robot_Init(void)
 
     nav_init();
     /* LED tắt → bắt đầu chạy */
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_SET);
 }
 void Robot_Loop(void)
 {
 	scanner_task();
 
-	/* ── HC-SR04 đáy (cliff sensors): trigger định kỳ + chống treo ──
-	 * Period 60ms = đủ cho echo về xa nhất (~4m, dùng cho timeout
-	 * trong hcsr04_check_timeout) trước khi bắn trigger kế tiếp. */
+
 	static u32 t_hc = 0;
 	u32 now_hc = HAL_GetTick();
 	hcsr04_check_timeout();
@@ -63,11 +61,12 @@ void Robot_Loop(void)
 		hcsr04_read();
 	}
 
-	/*
+	
 	if((u32)(now_hc - t) >= 150u){
 		t = now_hc;
 		OLED_DrawRadarMap();
 	}
-	*/
+	
+
 
 }

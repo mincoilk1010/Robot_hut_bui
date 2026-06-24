@@ -51,7 +51,23 @@ extern i16 p_l ,p_r ;
 extern float sr ,sl ;
 extern _vo u8  Flag ;
 extern f32 prev_dist_l, prev_dist_r ;
-extern float heading_target;
+extern _vo float heading_target;
+
+/* Heading-hold gains. Error/rate are in deg and deg/s; output is rad/s. */
+#define HH_KP_BASE          0.022f
+#define HH_KP_SPEED         0.01f
+#define HH_KI               0.0050f
+#define HH_KD               0.0040f
+#define HH_I_MAX           30.0f
+#define HH_GYRO_ALPHA       0.20f
+#define HH_DEADBAND_DEG     0.15f
+#define HH_RATE_DEADBAND    0.50f
+#define HH_W_MAX            0.50f
+#define HH_W_ACCEL          2.0f
+/* Set to -1.0f only if positive g_sp_w makes the measured yaw decrease. */
+#define YAW_CMD_SIGN_DEFAULT 1.0f
+
+void HeadingHold_SetTarget(float target_deg);
 void HeadingHold_Task(void);
 void PH_activate();
 void PH_deactivate();

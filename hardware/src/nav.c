@@ -160,6 +160,11 @@ static float _pending_turn_deg=0.0f;
 static NavSt_t _pending_turn_state=N_TURN90;
 
 static void _nenter(NavSt_t s){
+	if((nav.st==N_TURN90 || nav.st==N_TURN90B) &&
+	   (s==N_CROSS || s==N_FWD) && turn_done() && !turn.timeout){
+		HeadingHold_SetTarget(turn_final_yaw());
+		nav.lane_yaw=heading_target;
+	}
 	nav.st=s;
 	nav.t0=HAL_GetTick();
 	_nav_v_cmd=0.0f;
@@ -190,8 +195,6 @@ static float _dist(void)
 	return sqrtf(dx*dx+dy*dy);
 }
 
-static float _hh_itg=0;
-
 /* Thời gian tối đa đợi scan-wide quét xong 1 vòng mới trước khi vẫn
  * chọn hướng né (dự phòng, tránh kẹt vô hạn nếu scanner không bao
  * giờ vào WIDE vì lý do nào đó). */
@@ -199,10 +202,8 @@ static float _hh_itg=0;
 
 static void _fwd_ctrl(void)
 {
-    float ye=angle_diff(nav.lane_yaw,yaw);
-    _hh_itg=limit(_hh_itg+ye*dt_s,-20.0f,20.0f);
     g_sp_v=_ramp_speed(NAV_SPEED);
-    g_sp_w=limit(0.030f*ye+0.002f*_hh_itg,-0.40f,0.40f);
+    HeadingHold_Task();
 }
 
 /* ── Chọn hướng quay né vật cản: bên nào THOÁNG hơn ──
@@ -251,8 +252,8 @@ void nav_init(void){
     nav.row=0;
     nav.done=0;
     nav.t0=HAL_GetTick();
-    nav.lane_yaw=0;
-    _hh_itg=0;
+    HeadingHold_SetTarget(yaw);
+    nav.lane_yaw=heading_target;
 }
 
 void nav_task(void)
@@ -262,7 +263,7 @@ void nav_task(void)
     /* ── Cliff: ưu tiên ── đọc THẬT từ HC-SR04 đáy xe, không dùng
      * turn_final_yaw() (đó là góc yaw, không phải cờ phát hiện hố). */
     if(hcsr04_cliff_detected()&&(nav.st==N_FWD||nav.st==N_CROSS)){
-        g_sp_v=0;g_sp_w=0;_hh_itg=0;_nenter(N_CLIFF);return;
+        g_sp_v=0;g_sp_w=0;_nenter(N_CLIFF);return;
     }
 
     switch(nav.st){
@@ -272,7 +273,8 @@ void nav_task(void)
         g_sp_v=0;g_sp_w=0;
         if(now-nav.t0>100u){
             _front_obs_cnt=0;
-            nav.lane_yaw=yaw;nav.x0=pose.x;nav.y0=pose.y;
+            HeadingHold_SetTarget(yaw);
+            nav.lane_yaw=heading_target;nav.x0=pose.x;nav.y0=pose.y;
             _nenter(N_FWD);
         }
         break;
@@ -289,7 +291,7 @@ void nav_task(void)
         }
         if(dist>2.8f||nav.row>=NAV_MAX_ROWS||_front_obs_cnt>=2u){
             _front_obs_cnt=0;
-            g_sp_v=0;g_sp_w=0;_hh_itg=0;_nenter(N_BRAKE);
+            g_sp_v=0;g_sp_w=0;_nenter(N_BRAKE);
         }
         break;
     }
@@ -345,7 +347,7 @@ void nav_task(void)
             }
             nav.lane_yaw=turn_final_yaw();  /* hướng khi đi ngang */
             nav.x0=pose.x;nav.y0=pose.y;
-            g_sp_w=0;_hh_itg=0;
+            g_sp_w=0;
             _nenter(N_CROSS);
         }
         break;
@@ -356,12 +358,10 @@ void nav_task(void)
         if(d<NAV_ROW_M&&now-nav.t0<6000u){
             float remain=NAV_ROW_M-d;
             float v=(remain<0.08f)?NAV_SPEED*(remain/0.08f+0.2f):NAV_SPEED;
-            float ye=angle_diff(nav.lane_yaw,yaw);
-            _hh_itg=limit(_hh_itg+ye*dt_s,-15.0f,15.0f);
             g_sp_v=_ramp_speed(limit(v,0.04f,NAV_SPEED));
-            g_sp_w=limit(0.030f*ye+0.002f*_hh_itg,-0.35f,0.35f);
+            HeadingHold_Task();
         }else{
-            g_sp_v=0;g_sp_w=0;_hh_itg=0;
+            g_sp_v=0;g_sp_w=0;
             nav.row++;
             if(nav.row>=NAV_MAX_ROWS){_nenter(N_DONE);break;}
             float td=(nav.dir==1)?-90.0f:90.0f;
@@ -381,7 +381,7 @@ void nav_task(void)
             }
             nav.lane_yaw=turn_final_yaw();
             nav.x0=pose.x;nav.y0=pose.y;
-            g_sp_w=0;_hh_itg=0;
+            g_sp_w=0;
             _nenter(N_FWD);
         }
         break;
