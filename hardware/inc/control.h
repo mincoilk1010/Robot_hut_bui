@@ -68,6 +68,8 @@ extern _vo float heading_target;
 #define YAW_CMD_SIGN_DEFAULT 1.0f
 
 void HeadingHold_SetTarget(float target_deg);
+void HeadingHold_SetTrim(float w_trim);
+void HeadingHold_Enable(u8 enable);
 void HeadingHold_Task(void);
 void PH_activate();
 void PH_deactivate();
@@ -75,6 +77,7 @@ void PH_task();
 
 void pid_setup();
 void motorcontrol_pid();
+void Control_Task20ms(void);
 
 void Kinematics_update(float ds_left, float ds_right);
 void Kinematics_inverse(float v, float w, float *vL_out, float *vR_out);
@@ -87,14 +90,14 @@ void Kinematics_reset(void);
 
 #define TR_KP         0.0384f
 #define TR_KD         0.0015f
-#define TR_W_MAX      2.5f
-#define TR_W_MIN      0.15f
-#define TR_SLOW_DEG   18.0f
-#define TR_DONE_DEG   1.5f
-#define TR_ACCEL_MS   80u
-#define TR_SETTLE_MS  50u
-#define TR_STOP_MS    40u
-#define TURN_TIMEOUT_MS 2500u
+#define TR_W_MAX      1.45f
+#define TR_W_MIN      0.18f
+#define TR_SLOW_DEG  25.0f
+#define TR_DONE_DEG   3.0f
+#define TR_ACCEL_MS   200u
+#define TR_SETTLE_MS  120u
+#define TR_STOP_MS     80u
+#define TURN_TIMEOUT_MS 5000u
 typedef enum
 {
     TR_IDLE,
@@ -119,8 +122,9 @@ typedef struct {
     uint32_t t0, t_settle;
     uint8_t  done, timeout;
 } Turn_t;
-extern Turn_t turn;
+extern volatile Turn_t turn;
 void  turn_start(float delta_deg);
+void  turn_start_to(float target_deg);
 void  turn_task(void);
 u8    turn_done(void);
 float turn_final_yaw(void);

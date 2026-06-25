@@ -18,6 +18,9 @@ static float _turn_yaw_sign = 0.0f;
 static float heading_integral = 0.0f;
 static float heading_gyro_filt = 0.0f;
 static float heading_w_cmd = 0.0f;
+static volatile float heading_w_trim = 0.0f;
+static volatile u8 heading_hold_enabled = 1u;
+static u8 _turn_absolute = 0u;
 
 void HeadingHold_SetTarget(float target_deg)
 {
@@ -29,10 +32,32 @@ void HeadingHold_SetTarget(float target_deg)
     heading_integral = 0.0f;
     heading_gyro_filt = GZ - GZ_calib;
     heading_w_cmd = 0.0f;
+    heading_w_trim = 0.0f;
+}
+
+void HeadingHold_SetTrim(float w_trim)
+{
+    heading_w_trim = limit(w_trim, -HH_W_MAX, HH_W_MAX);
+}
+
+void HeadingHold_Enable(u8 enable)
+{
+    heading_hold_enabled = enable ? 1u : 0u;
+    if (!heading_hold_enabled) {
+        heading_integral = 0.0f;
+        heading_w_cmd = 0.0f;
+        heading_w_trim = 0.0f;
+        g_sp_w = 0.0f;
+    }
 }
 
 void HeadingHold_Task(void)
 {
+    if (!heading_hold_enabled) {
+        g_sp_w = 0.0f;
+        return;
+    }
+
     float err = mpu6050_angleDiff(heading_target, yaw);
     float gyro_z = GZ - GZ_calib;
     heading_gyro_filt += HH_GYRO_ALPHA * (gyro_z - heading_gyro_filt);
@@ -54,13 +79,15 @@ void HeadingHold_Task(void)
     /* Gyro rate is a cleaner damping signal than differentiating noisy yaw. */
     float w_sensor = kp * err_ctrl
                    + HH_KI * heading_integral
-                   - HH_KD * heading_gyro_filt;
+                   - HH_KD * heading_gyro_filt
+                   + heading_w_trim;
     float yaw_sign = (_turn_yaw_sign == 0.0f) ? YAW_CMD_SIGN_DEFAULT
                                                : _turn_yaw_sign;
     float w_target = limit(yaw_sign * w_sensor, -HH_W_MAX, HH_W_MAX);
 
     if (fabsf(err) < HH_DEADBAND_DEG &&
-        fabsf(heading_gyro_filt) < HH_RATE_DEADBAND) {
+        fabsf(heading_gyro_filt) < HH_RATE_DEADBAND &&
+        fabsf(heading_w_trim) < 0.001f) {
         w_target = 0.0f;
         heading_integral = 0.0f;
     }
@@ -189,90 +216,126 @@ void pid_setup()
     PID_Init(&pid_r,KP_r,KI_r,KD_r,pid_out_min,pid_out_max,pid_int_min,pid_int_max);
 }
 
-void motorcontrol_pid()
+void Control_Task20ms(void)
 {
+    static volatile u32 last_ms = 0u;
+    u32 now = HAL_GetTick();
 
-    Kinematics_inverse(g_sp_v,g_sp_w,&sl,&sr);
-    /* Left */
-    if(fabs(sl) <0.0001f)
-    {
-        PID_Reset(&pid_l);TIM4->CCR1=0;TIM4->CCR2=0;Motor_Left_Dir=0;
+    /* This function can be requested by both main and the MPU EXTI. Claim
+     * one 20 ms slot atomically so heading/turn and wheel PID never run twice. */
+    u32 primask = __get_PRIMASK();
+    __disable_irq();
+    if ((u32)(now - last_ms) < dt_ms) {
+        if (!primask) __enable_irq();
+        return;
     }
-    else{
-        i16 p=(i16)PID_Update(&pid_l,sl,ec_l.vel,dt_s);
-        p_l = p;
+    last_ms = now;
+    if (!primask) __enable_irq();
 
-        if(sl > 0.0f && p < 0.0f)
-        {
-            p=0;
-            pid_l.integral = 0.0f;
-        }
-        if(sl < 0.0f && p > 0.0f)
-        {
-            p=0;
-            pid_l.integral = 0.0f;
-        }
-        if(p>0){
-            Motor_Left_Dir=1;
-            TIM4->CCR1=(u32)p;
-            TIM4->CCR2=0;
-        }
-        else if(p<0)
-        {
-            Motor_Left_Dir=-1;
-            TIM4->CCR1=0;
-            TIM4->CCR2=(u32)(-p);
-        }
-        else{
-            Motor_Left_Dir=0;
-            TIM4->CCR1=0;
-            TIM4->CCR2=0;
-        }
+    if (turn.state == TR_IDLE || turn.state == TR_DONE ||
+        turn.state == TR_TOUT) {
+        HeadingHold_Task();
+    } else {
+        turn_task();
     }
-    /* Right */
-    if(fabs(sr) < 0.0001f){
-        PID_Reset(&pid_r);
-        TIM4->CCR3=0;
-        TIM4->CCR4=0;
-        Motor_Right_Dir=0;
-    }
-    else{
-        i16 p=(i16)PID_Update(&pid_r,sr,ec_r.vel,dt_s);
-        p_r = p;
 
-        if(sr > 0.0f && p < 0.0f)
-        {
-            p=0;
-            pid_r.integral = 0.0f;
-        }
-        if(sr < 0.0f && p > 0.0f)
-        {
-            p=0;
-            pid_r.integral = 0.0f;
-        }
-        if(p>0)
-        {
-            Motor_Right_Dir=1;
-            TIM4->CCR3=(u32)p;
-            TIM4->CCR4=0;
-        }
-        else if(p<0)
-        {
-            Motor_Right_Dir=-1;
-            TIM4->CCR3=0;
-            TIM4->CCR4=(u32)(-p);
-        }
-        else
-        {
-            Motor_Right_Dir=0;
-            TIM4->CCR3=0;
-            TIM4->CCR4=0;
-        }
+    motorcontrol_pid();
+}
+
+static float motor_pwm_l = 0.0f;
+static float motor_pwm_r = 0.0f;
+
+static i16 wheel_control(PID_t *pid, float target, float feedback,
+                         float feedforward, float pwm_min,
+                         float *pwm_applied)
+{
+    if (fabsf(target) < MOTOR_SP_DEADBAND) {
+        PID_Reset(pid);
+        *pwm_applied = 0.0f;
+        return 0;
+    }
+
+    float dir = (target > 0.0f) ? 1.0f : -1.0f;
+    float desired = PID_Update(pid, target, feedback, dt_s)
+                  + dir * feedforward;
+
+    /* Do not command reverse braking when the requested wheel direction has
+     * not changed. Coast briefly instead; it avoids alternating H-bridge
+     * direction at low encoder resolution. */
+    if (desired * dir <= 0.0f) {
+        desired = 0.0f;
+        pid->integral *= 0.8f;
+    } else if (fabsf(desired) < pwm_min) {
+        desired = dir * pwm_min;
+    }
+    desired = limit(desired, pid_out_min, pid_out_max);
+
+    /* On a direction reversal, ramp to zero first, then ramp into the new
+     * direction. This is gentler on the gearbox and motor driver. */
+    if ((*pwm_applied) * dir < 0.0f)
+        desired = 0.0f;
+
+    float dp = desired - *pwm_applied;
+    dp = limit(dp, -MOTOR_PWM_SLEW_STEP, MOTOR_PWM_SLEW_STEP);
+    *pwm_applied += dp;
+
+    if (fabsf(*pwm_applied) < 0.5f) *pwm_applied = 0.0f;
+    return (i16)(*pwm_applied);
+}
+
+static void apply_left_pwm(i16 pwm)
+{
+    p_l = pwm;
+    if (pwm > 0) {
+        Motor_Left_Dir = 1;
+        TIM4->CCR1 = (u32)pwm;
+        TIM4->CCR2 = 0u;
+    } else if (pwm < 0) {
+        Motor_Left_Dir = -1;
+        TIM4->CCR1 = 0u;
+        TIM4->CCR2 = (u32)(-pwm);
+    } else {
+        Motor_Left_Dir = 0;
+        TIM4->CCR1 = 0u;
+        TIM4->CCR2 = 0u;
     }
 }
 
+static void apply_right_pwm(i16 pwm)
+{
+    p_r = pwm;
+    if (pwm > 0) {
+        Motor_Right_Dir = 1;
+        TIM4->CCR3 = (u32)pwm;
+        TIM4->CCR4 = 0u;
+    } else if (pwm < 0) {
+        Motor_Right_Dir = -1;
+        TIM4->CCR3 = 0u;
+        TIM4->CCR4 = (u32)(-pwm);
+    } else {
+        Motor_Right_Dir = 0;
+        TIM4->CCR3 = 0u;
+        TIM4->CCR4 = 0u;
+    }
+}
 
-Turn_t turn = {0};
+void motorcontrol_pid(void)
+{
+    Kinematics_inverse(g_sp_v, g_sp_w, &sl, &sr);
+
+    i16 left_pwm = wheel_control(&pid_l, sl, ec_l.vel,
+                                 MOTOR_PWM_FF_L, MOTOR_PWM_MIN_L,
+                                 &motor_pwm_l);
+    i16 right_pwm = wheel_control(&pid_r, sr, ec_r.vel,
+                                  MOTOR_PWM_FF_R, MOTOR_PWM_MIN_R,
+                                  &motor_pwm_r);
+
+    apply_left_pwm(left_pwm);
+    apply_right_pwm(right_pwm);
+}
+
+
+volatile Turn_t turn = {0};
 
 
 
@@ -283,6 +346,7 @@ static float _norm(float a)
 
 void turn_start(float delta_deg)
 {
+    _turn_absolute = 0u;
     delta_deg = _norm(delta_deg);
 
     turn.yaw_start = yaw;
@@ -302,6 +366,20 @@ void turn_start(float delta_deg)
  
     g_sp_v = 0.0f;
     g_sp_w = 0.0f;
+}
+
+void turn_start_to(float target_deg)
+{
+    float target = _norm(target_deg);
+    float yaw_sign = (_turn_yaw_sign == 0.0f) ? YAW_CMD_SIGN_DEFAULT
+                                               : _turn_yaw_sign;
+    float sensor_delta = _norm(target - yaw);
+
+    turn_start(sensor_delta / yaw_sign);
+    _turn_absolute = 1u;
+    turn.yaw_t = target;
+    turn.err = _norm(turn.yaw_t - yaw);
+    turn.err_old = turn.err;
 }
  
 /* ════════════════════════════════════════════════════════════════
@@ -359,7 +437,8 @@ void turn_task(void)
             float moved = _norm(yaw - turn.yaw_start);
             if (ABS_F(moved) >= 1.0f) {
                 _turn_yaw_sign = (moved * (float)turn.dir >= 0.0f) ? 1.0f : -1.0f;
-                turn.yaw_t = _norm(turn.yaw_start + turn.delta_cmd * _turn_yaw_sign);
+                if (!_turn_absolute)
+                    turn.yaw_t = _norm(turn.yaw_start + turn.delta_cmd * _turn_yaw_sign);
                 turn.err = _norm(turn.yaw_t - yaw);
                 turn.err_old = turn.err;
             }

@@ -88,7 +88,6 @@ i16 p_l ,p_r ;
 float sr ,sl ;
 _vo u8  Flag_Target ;
 _vo float heading_target = 0.0f;
-u8 state = 0;
 statInfo_t_VL53L0X stat;
 _vo u8  Flag = 0;
 void Debug_Print1(void)
@@ -173,73 +172,15 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 
-   // u32 t=0;
-  //turn_start(90.0f);
+
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	//Robot_Loop();
+	Robot_Loop();
 	 //Debug_Print();
 
-
-	  /*
-    if (HAL_GetTick() - last_scan_tick >= 50) 
-      {
-          last_scan_tick = HAL_GetTick();
-
-          // Đọc khoảng cách và nạp vào mảng Lidar Map
-          uint16_t dist = readRangeContinuousMillimeters(0);
-          if(current_angle >= 0 && current_angle <= 180) {
-              Lidar_Map[current_angle] = dist; 
-          }
-
-          // Cập nhật góc Servo quay qua lại (Ping-pong)
-          current_angle += angle_step;
-          if (current_angle >= 180) {
-              current_angle = 180;
-              angle_step = -10;
-          } else if (current_angle <= 0) {
-              current_angle = 0;
-              angle_step = 10;
-          }
-          Servo_WriteAngle(current_angle);
-
-          // Giảm tần suất cập nhật OLED (Vẽ lại sau mỗi 3 chu kỳ = 150ms)
-          // Tránh tình trạng OLED nuốt hết tài nguyên CPU của PID động cơ
-       //   oled_update_tick++;
-          if(oled_update_tick >= 3) {
-           //   OLED_DrawRadarMap();
-             // oled_update_tick = 0;
-          }
-      }
-    */
-
-	  float d = (ec_l.dist + ec_r.dist) * 0.5f;
-
-	     if(state == 0)
-		{
-			g_sp_v = 0.15f;
-
-			if(d > 1.0f)
-			{
-				turn_start(90.0f);
-				state = 1;
-			}
-		}
-		else if(state == 1)
-		{
-			if(turn.done)
-			{
-				ec_l.dist = 0;
-				ec_r.dist = 0;
-
-				HeadingHold_SetTarget(yaw);
-
-				state = 0;
-			}
-		}
 
 	   //  Debug_Print1();
 

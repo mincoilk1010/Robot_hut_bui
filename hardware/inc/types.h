@@ -29,16 +29,25 @@ typedef int32_t i32;
 #define dt_ms               20u
 
 
-#define KP_r 1050.0f
+#define KP_r 1100.0f
 #define KI_r 650.0f
 #define KD_r 0.01f
-#define KP_l 1050.0f
+#define KP_l 1100.0f
 #define KI_l 650.0f
 #define KD_l 0.01f
-#define pid_int_min       -888.0f
-#define pid_int_max          888.0f
+#define pid_int_min         -0.80f
+#define pid_int_max          0.80f
 #define pid_out_min        -999.0f
 #define pid_out_max        999.0f
+
+/* Motor static-friction compensation. Tune LEFT/RIGHT independently after
+ * measuring the first PWM value that makes each wheel rotate reliably. */
+#define MOTOR_PWM_FF_L       180.0f
+#define MOTOR_PWM_FF_R       180.0f
+#define MOTOR_PWM_MIN_L      260.0f
+#define MOTOR_PWM_MIN_R      260.0f
+#define MOTOR_PWM_SLEW_STEP   35.0f  /* maximum PWM change per 20 ms */
+#define MOTOR_SP_DEADBAND       0.003f
 
 
 #define DEG2RAD(x)          ((x) * PI / 180.0f)

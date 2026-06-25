@@ -91,7 +91,7 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 	if(htim->Instance == TIM1)
 	{
 
-		if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+		if(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1 && hc[0].busy)
 		{
 			
 			 if(!hc[0].first_cap)
@@ -124,12 +124,14 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 				hc[0].done = 1; // bao timer do xong
 				hc[0].busy = 0;
 				hc[0].first_cap = 0;
+				hc[0].sample_ms = HAL_GetTick();
 				TIM1->CCER &= ~(1 << 1); //  falling edge
+				TIM1->DIER &= ~(1 << 1);
 				
 
 		}
 
-		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
+		if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2 && hc[1].busy)
 		{
 			if(!hc[1].first_cap)
 			{
@@ -159,7 +161,9 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 				hc[1].done = 1;
 				hc[1].busy = 0;
 				hc[1].first_cap = 0;
+				hc[1].sample_ms = HAL_GetTick();
 				TIM1->CCER &= ~(1<<5); /* CC2P: back to rising edge */
+				TIM1->DIER &= ~(1 << 2);
 				
 			}
 		}

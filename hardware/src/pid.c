@@ -48,16 +48,31 @@ float PID_Update(PID_t *pid, float target, float feedback, float dt)
 
 	pid->error = target - feedback;
 
+	float integral_old = pid->integral;
 	pid->integral += pid->error * dt;
 	pid->integral = limit(pid->integral, pid->integral_min, pid->integral_max);
 
 	float derivative = (pid->error - pid->prev_error) / dt;
-	pid->output = pid->kp * pid->error + pid->ki * pid->integral + pid->kd * derivative;
+	float raw = pid->kp * pid->error
+	          + pid->ki * pid->integral
+	          + pid->kd * derivative;
+	float output = limit(raw, pid->output_min, pid->output_max);
+
+	/* Conditional integration: if the output is saturated and the current
+	 * error would push it farther into saturation, discard this integral step. */
+	if (raw != output && pid->error * raw > 0.0f) {
+		pid->integral = integral_old;
+		raw = pid->kp * pid->error
+		    + pid->ki * pid->integral
+		    + pid->kd * derivative;
+		output = limit(raw, pid->output_min, pid->output_max);
+	}
+	pid->output = output;
 
 	pid->prev_error = pid->error;
 
 
-	return limit(pid->output,pid_out_min,pid_out_max);
+	return pid->output;
 
 
 }
