@@ -1,0 +1,4 @@
+../hcsr04/hcsr04.c:4:6:HCSR04_Cliff_Init	1
+../hcsr04/hcsr04.c:22:6:HCSR04_Cliff_Start	12
+../hcsr04/hcsr04.c:46:6:HCSR04_Cliff_Capture_Callback	21
+../hcsr04/hcsr04.c:87:6:HCSR04_Cliff_Handle	9
