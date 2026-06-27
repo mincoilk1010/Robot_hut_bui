@@ -11,12 +11,17 @@
 #include "types.h"
  
 
-#define ROBOT_WIDTH_M     0.23f   /* chiều rộng thân xe: 23 cm */
+#define ROBOT_WIDTH_M     0.25f   /* chiều rộng thân xe: 25 cm */
 #define SAFETY_MARGIN_M   0.17f   /* tổng biên an toàn trái + phải */
 #define MIN_GAP_M         (ROBOT_WIDTH_M + SAFETY_MARGIN_M) /* 0.40 m */
  
 /* Ngưỡng coi là "thoáng" khi tìm gap (mm) */
 #define GAP_CLEAR_MM      450u
+#define GAP_UNKNOWN_MM    1500u
+#define GAP_UNKNOWN_PENALTY_MM 40.0f
+#define GAP_UNKNOWN_MIN_SPAN_POINTS 5u
+#define GAP_REAL_MIN_POINTS 2u
+#define GAP_UNKNOWN_MAX_RATIO 2u
  
 typedef struct {
     uint8_t  found;        /* 1 nếu tìm được khe hở hợp lệ */

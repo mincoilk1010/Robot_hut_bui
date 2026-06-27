@@ -7,16 +7,18 @@
 #include <math.h>
 
 typedef enum {
-    SCAN_OBJECT = 0,
-    SCAN_WALL_END,
-    SCAN_WALL_SIDE
-} ScanClass_t;
+    SCENE_OBJECT = 0,
+    SCENE_WALL,
+    SCENE_UNKNOWN
+} Scene_t;
 
-typedef enum {
-    SCAN_OBSTACLE = 0,
-    SCAN_RECOVER,
-    SCAN_SEARCH
-} ScanReason_t;
+typedef struct {
+    u8 found;
+    float width_m;
+    float front_m;
+    u8 start_deg;
+    u8 end_deg;
+} ObjectMeasure_t;
 
 Nav_t nav = {
     .st = N_BOOT,
@@ -33,42 +35,43 @@ static float nav_v_cmd = 0.0f;
 static float mark_x = 0.0f;
 static float mark_y = 0.0f;
 
-static u8 front_obs_count = 0u;
-static u8 front_contact_count = 0u;
-static u16 front_hold_mm = 9999u;
-static u32 last_front_seq = 0u;
-
 static float pending_turn_yaw = 0.0f;
 static NavSt_t pending_after_turn = N_FWD;
-static u8 turn_retry_count = 0u;
 static u8 pending_turn_is_row = 0u;
 
 static i8 row_shift_side = 1;
 static float row_next_yaw = 0.0f;
-static float row_shift_target_m = NAV_ROW_M;
+static float row_shift_target_m = NAV_WALL_ROW_M;
 
 static float avoid_resume_yaw = 0.0f;
 static float avoid_resume_x0 = 0.0f;
 static float avoid_resume_y0 = 0.0f;
 static i8 avoid_side = 1;
-static float avoid_angle = NAV_AVOID_ANGLE_DEG;
+static float avoid_offset_m = NAV_AVOID_OFFSET_M;
+static float avoid_pass_m = NAV_AVOID_PASS_M;
+static u8 avoid_pass_phase = 0u;
+static u8 avoid_side_seen = 0u;
+static u8 avoid_side_lost_count = 0u;
 static float rejoin_start_error = 0.0f;
 
-static ScanReason_t scan_reason = SCAN_OBSTACLE;
-static u8 no_gap_backup_done = 0u;
-static i8 search_dir = 0;
-static u8 search_step_count = 0u;
+static u16 front_hold_mm = 9999u;
+static u32 last_front_seq = 0u;
+
+static Scene_t planned_scene = SCENE_UNKNOWN;
+static i8 planned_side = 1;
+static u8 planned_ready = 0u;
+static u8 scan_for_plan = 0u;
+static u16 planned_front_mm = 9999u;
+static float planned_x = 0.0f;
+static float planned_y = 0.0f;
+static float planned_run_m = 0.0f;
+static float planned_object_width_m = 0.0f;
+static float planned_avoid_offset_m = NAV_AVOID_OFFSET_M;
+static float planned_avoid_pass_m = NAV_AVOID_PASS_M;
 
 static u32 stuck_watch_ms = 0u;
 static float stuck_watch_x = 0.0f;
 static float stuck_watch_y = 0.0f;
-static u32 hidden_row_watch_ms = 0u;
-static float hidden_row_watch_x = 0.0f;
-static float hidden_row_watch_y = 0.0f;
-
-static u32 hc_seen_ms[2] = {0u, 0u};
-static u8 hc_bad_count[2] = {0u, 0u};
-static u8 cliff_latched_mask = 0u;
 
 static float norm_deg(float a)
 {
@@ -85,132 +88,6 @@ static float cross_error_for(float lane_yaw, float x0, float y0)
     return -sinf(psi) * dx + cosf(psi) * dy;
 }
 
-static float distance_from_mark(void)
-{
-    float dx = pose.x - mark_x;
-    float dy = pose.y - mark_y;
-    return sqrtf(dx * dx + dy * dy);
-}
-
-static void mark_position(void)
-{
-    mark_x = pose.x;
-    mark_y = pose.y;
-}
-
-static void stop_motion(void)
-{
-    g_sp_v = 0.0f;
-    g_sp_w = 0.0f;
-    HeadingHold_SetTrim(0.0f);
-}
-
-static void reset_front_watch(void)
-{
-    front_obs_count = 0u;
-    front_contact_count = 0u;
-    front_hold_mm = 9999u;
-    last_front_seq = scanner_front_seq();
-}
-
-static void reset_stuck_watch(void)
-{
-    stuck_watch_ms = HAL_GetTick();
-    stuck_watch_x = pose.x;
-    stuck_watch_y = pose.y;
-}
-
-static void reset_hidden_row_watch(void)
-{
-    hidden_row_watch_ms = HAL_GetTick();
-    hidden_row_watch_x = pose.x;
-    hidden_row_watch_y = pose.y;
-}
-
-static i16 drive_pwm_abs_max(void)
-{
-    i16 abs_l = (p_l < 0) ? (i16)(-p_l) : p_l;
-    i16 abs_r = (p_r < 0) ? (i16)(-p_r) : p_r;
-    return (abs_l > abs_r) ? abs_l : abs_r;
-}
-
-static u8 pwm_force_active(i16 min_pwm)
-{
-    return (drive_pwm_abs_max() >= min_pwm) ? 1u : 0u;
-}
-
-static u8 stuck_pwm_force_active(void)
-{
-    return pwm_force_active(NAV_STUCK_PWM_MIN);
-}
-
-static void reset_search_sweep(void)
-{
-    search_dir = 0;
-    search_step_count = 0u;
-}
-
-static void mission_set_line(float yaw_deg, float x0, float y0)
-{
-    nav.lane_yaw = norm_deg(yaw_deg);
-    nav.x0 = x0;
-    nav.y0 = y0;
-    HeadingHold_SetTarget(nav.lane_yaw);
-}
-
-static void enter_state(NavSt_t state)
-{
-    nav.st = state;
-    nav.t0 = HAL_GetTick();
-    nav_v_cmd = 0.0f;
-    nav.done = (state == N_DONE) ? 1u : 0u;
-    HeadingHold_Enable(state != N_DONE);
-    reset_stuck_watch();
-    reset_hidden_row_watch();
-
-    if (state == N_ROW_CROSS || state == N_AVOID_OFFSET ||
-        state == N_AVOID_PASS || state == N_AVOID_REJOIN ||
-        state == N_STUCK_BACK || state == N_CLIFF_BACK ||
-        state == N_CLIFF_ESCAPE) {
-        mark_position();
-    }
-
-    if (state == N_AVOID_REJOIN) {
-        rejoin_start_error =
-            cross_error_for(avoid_resume_yaw, avoid_resume_x0, avoid_resume_y0);
-    }
-
-    if (state == N_FWD) {
-        reset_front_watch();
-        HeadingHold_SetTarget(nav.lane_yaw);
-        no_gap_backup_done = 0u;
-        reset_search_sweep();
-    } else if (state == N_AVOID_OFFSET || state == N_AVOID_PASS) {
-        front_hold_mm = 9999u;
-        last_front_seq = scanner_front_seq();
-    }
-
-    if (state == N_BRAKE || state == N_TURN_WAIT ||
-        state == N_CLIFF_CONFIRM || state == N_CLIFF_DECIDE ||
-        state == N_CLIFF_SCAN || state == N_DONE) {
-        stop_motion();
-    }
-
-    if (state == N_BRAKE) {
-        scanner_request_wide();
-    }
-}
-
-static float ramp_speed(float target)
-{
-    float step = NAV_ACCEL_MPS2 * dt_s;
-    float dv = target - nav_v_cmd;
-    if (dv > step) dv = step;
-    if (dv < -step) dv = -step;
-    nav_v_cmd += dv;
-    return nav_v_cmd;
-}
-
 static float lane_progress(void)
 {
     float psi = DEG2RAD(nav.lane_yaw);
@@ -224,12 +101,177 @@ static float lane_cross_error(void)
     return cross_error_for(nav.lane_yaw, nav.x0, nav.y0);
 }
 
-static void drive_lane(float speed)
+static void mark_position(void)
 {
-    float trim = -NAV_XTRACK_K * lane_cross_error();
-    trim = limit(trim, -NAV_XTRACK_W_MAX, NAV_XTRACK_W_MAX);
-    HeadingHold_SetTrim(trim);
-    g_sp_v = ramp_speed(speed);
+    mark_x = pose.x;
+    mark_y = pose.y;
+}
+
+static float distance_from_mark(void)
+{
+    float dx = pose.x - mark_x;
+    float dy = pose.y - mark_y;
+    return sqrtf(dx * dx + dy * dy);
+}
+
+static void stop_motion(void)
+{
+    g_sp_v = 0.0f;
+    g_sp_w = 0.0f;
+    nav_v_cmd = 0.0f;
+    HeadingHold_SetTrim(0.0f);
+}
+
+static void reset_front_watch(void)
+{
+    front_hold_mm = 9999u;
+    last_front_seq = scanner_front_seq();
+}
+
+static void reset_stuck_watch(void)
+{
+    stuck_watch_ms = HAL_GetTick();
+    stuck_watch_x = pose.x;
+    stuck_watch_y = pose.y;
+}
+
+static void clear_obstacle_plan(void)
+{
+    planned_scene = SCENE_UNKNOWN;
+    planned_side = nav.dir;
+    planned_ready = 0u;
+    scan_for_plan = 0u;
+    planned_front_mm = 9999u;
+    planned_x = pose.x;
+    planned_y = pose.y;
+    planned_run_m = 0.0f;
+    planned_object_width_m = 0.0f;
+    planned_avoid_offset_m = NAV_AVOID_OFFSET_M;
+    planned_avoid_pass_m = NAV_AVOID_PASS_M;
+}
+
+static void resume_forward_keep_plan(void)
+{
+    nav.st = N_FWD;
+    nav.t0 = HAL_GetTick();
+    nav.done = 0u;
+    nav_v_cmd = 0.0f;
+    reset_stuck_watch();
+    HeadingHold_SetTarget(nav.lane_yaw);
+    HeadingHold_SetTrim(0.0f);
+}
+
+static float planned_distance_done(void)
+{
+    float dx = pose.x - planned_x;
+    float dy = pose.y - planned_y;
+    return sqrtf(dx * dx + dy * dy);
+}
+
+static u8 object_side_servo_deg(void)
+{
+    /* If robot avoids to the left of the object, the object is on its right
+     * while driving parallel to the old line.  If it avoids to the right, the
+     * object is on its left.  Servo convention in this project:
+     * small angle = right, large angle = left.
+     */
+    return (avoid_side > 0) ? NAV_SIDE_LOOK_RIGHT_DEG
+                            : NAV_SIDE_LOOK_LEFT_DEG;
+}
+
+static u8 side_sensor_sees_object(void)
+{
+    u16 mm = scanner_locked_mm();
+    return (mm != 9999u && mm <= NAV_SIDE_OBJECT_MM) ? 1u : 0u;
+}
+
+static void mission_set_line(float yaw_deg, float x0, float y0)
+{
+    nav.lane_yaw = norm_deg(yaw_deg);
+    nav.x0 = x0;
+    nav.y0 = y0;
+    HeadingHold_SetTarget(nav.lane_yaw);
+    HeadingHold_SetTrim(0.0f);
+}
+
+static void enter_state(NavSt_t state)
+{
+    nav.st = state;
+    nav.t0 = HAL_GetTick();
+    nav.done = (state == N_DONE) ? 1u : 0u;
+    nav_v_cmd = 0.0f;
+    reset_stuck_watch();
+
+    if (state == N_FWD) {
+        scanner_unlock();
+        reset_front_watch();
+        clear_obstacle_plan();
+        if (scanner_mode() == SC_WIDE)
+            scanner_wide_consume();
+        HeadingHold_SetTarget(nav.lane_yaw);
+        HeadingHold_SetTrim(0.0f);
+    }
+
+    if (state == N_BRAKE || state == N_TURN_WAIT ||
+        state == N_TURN_ACTIVE || state == N_DONE) {
+        stop_motion();
+    }
+
+    if (state == N_BRAKE) {
+        scanner_unlock();
+        scanner_request_wide();
+    }
+
+    if (state == N_ROW_CROSS || state == N_AVOID_OFFSET ||
+        state == N_AVOID_PASS || state == N_AVOID_REJOIN ||
+        state == N_STUCK_BACK) {
+        mark_position();
+    }
+
+    if (state == N_AVOID_OFFSET || state == N_AVOID_PASS ||
+        state == N_AVOID_REJOIN) {
+        reset_front_watch();
+        front_hold_mm = 9999u;
+    }
+
+    u8 avoid_turn =
+        (state == N_TURN_WAIT &&
+         (pending_after_turn == N_AVOID_OFFSET ||
+          pending_after_turn == N_AVOID_PASS ||
+          pending_after_turn == N_AVOID_REJOIN)) ? 1u : 0u;
+
+    if ((state == N_TURN_WAIT && !avoid_turn) || state == N_ROW_CROSS ||
+        state == N_STUCK_BACK || state == N_DONE) {
+        scanner_unlock();
+    }
+
+    if (state == N_AVOID_OFFSET) {
+        avoid_side_seen = 0u;
+        avoid_side_lost_count = 0u;
+        scanner_lock_angle(object_side_servo_deg());
+    }
+
+    if (state == N_AVOID_PASS) {
+        avoid_pass_phase = 0u;
+        avoid_side_seen = 0u;
+        avoid_side_lost_count = 0u;
+        scanner_lock_angle(object_side_servo_deg());
+    }
+
+    if (state == N_AVOID_REJOIN) {
+        rejoin_start_error =
+            cross_error_for(avoid_resume_yaw, avoid_resume_x0, avoid_resume_y0);
+    }
+}
+
+static float ramp_speed(float target)
+{
+    float step = NAV_ACCEL_MPS2 * dt_s;
+    float dv = target - nav_v_cmd;
+    if (dv > step) dv = step;
+    if (dv < -step) dv = -step;
+    nav_v_cmd += dv;
+    return nav_v_cmd;
 }
 
 static void drive_heading(float speed)
@@ -238,10 +280,30 @@ static void drive_heading(float speed)
     g_sp_v = ramp_speed(speed);
 }
 
+static void drive_lane(float speed)
+{
+    float e = lane_cross_error();
+    if (fabsf(e) < NAV_XTRACK_DEADBAND_M)
+        e = 0.0f;
+
+    float trim = -NAV_XTRACK_K * e;
+    trim = limit(trim, -NAV_XTRACK_W_MAX, NAV_XTRACK_W_MAX);
+    HeadingHold_SetTrim(trim);
+    g_sp_v = ramp_speed(speed);
+}
+
 static float speed_for_front(u16 front_mm)
 {
-    if (front_mm >= NAV_OBS_SLOW_MM)
+    if (front_mm >= NAV_OBS_LOOKAHEAD_MM)
         return NAV_SPEED;
+
+    if (front_mm > NAV_OBS_SLOW_MM) {
+        float span = (float)(NAV_OBS_LOOKAHEAD_MM - NAV_OBS_SLOW_MM);
+        float k = (float)(front_mm - NAV_OBS_SLOW_MM) / span;
+        return limit(NAV_SPEED * (0.75f + 0.25f * k),
+                     NAV_SPEED * 0.70f, NAV_SPEED);
+    }
+
     if (front_mm <= NAV_OBS_TURN_MM)
         return NAV_SPEED * 0.25f;
 
@@ -255,57 +317,17 @@ static u8 take_new_front(u16 *front_mm)
     u32 seq = scanner_front_seq();
     if (seq == last_front_seq)
         return 0u;
+
     last_front_seq = seq;
     *front_mm = scanner_front();
     return 1u;
 }
 
-static void update_cliff_filter(void)
+static i16 drive_pwm_abs_max(void)
 {
-    u32 now = HAL_GetTick();
-    for (u8 i = 0u; i < 2u; i++) {
-        if (hc[i].sample_ms == 0u || hc[i].sample_ms == hc_seen_ms[i])
-            continue;
-
-        hc_seen_ms[i] = hc[i].sample_ms;
-        if ((u32)(now - hc[i].sample_ms) > HC_SAMPLE_MAX_AGE_MS)
-            continue;
-
-        if (hc[i].d > CLIFF_MM) {
-            if (hc_bad_count[i] < CLIFF_CONFIRM_SAMPLES)
-                hc_bad_count[i]++;
-        } else {
-            hc_bad_count[i] = 0u;
-        }
-    }
-}
-
-static u8 cliff_mask(void)
-{
-    if (!NAV_CLIFF_ENABLE)
-        return 0u;
-
-    u32 now = HAL_GetTick();
-    u8 mask = 0u;
-
-    if (hc[HC_LEFT_INDEX].sample_ms != 0u &&
-        (u32)(now - hc[HC_LEFT_INDEX].sample_ms) <= HC_SAMPLE_MAX_AGE_MS &&
-        hc_bad_count[HC_LEFT_INDEX] >= CLIFF_CONFIRM_SAMPLES)
-        mask |= 1u;
-
-    if (hc[HC_RIGHT_INDEX].sample_ms != 0u &&
-        (u32)(now - hc[HC_RIGHT_INDEX].sample_ms) <= HC_SAMPLE_MAX_AGE_MS &&
-        hc_bad_count[HC_RIGHT_INDEX] >= CLIFF_CONFIRM_SAMPLES)
-        mask |= 2u;
-
-    return mask;
-}
-
-static u8 is_moving_state(NavSt_t state)
-{
-    return state == N_FWD || state == N_ROW_CROSS ||
-           state == N_AVOID_OFFSET || state == N_AVOID_PASS ||
-           state == N_AVOID_REJOIN;
+    i16 abs_l = (p_l < 0) ? (i16)(-p_l) : p_l;
+    i16 abs_r = (p_r < 0) ? (i16)(-p_r) : p_r;
+    return (abs_l > abs_r) ? abs_l : abs_r;
 }
 
 static u8 stuck_detected(u32 now, float cmd_speed)
@@ -313,15 +335,8 @@ static u8 stuck_detected(u32 now, float cmd_speed)
     if (!NAV_STUCK_ENABLE)
         return 0u;
 
-    /* Only back up when the drivetrain is really pushing hard. Seeing a wall
-     * or a close obstacle is not "stuck"; PWM around NAV_STUCK_PWM_MIN with
-     * no wheel/pose progress is the stuck condition. */
-    if (!stuck_pwm_force_active()) {
-        reset_stuck_watch();
-        return 0u;
-    }
-
-    if (fabsf(cmd_speed) < NAV_STUCK_CMD_MIN_MPS) {
+    if (fabsf(cmd_speed) < NAV_STUCK_CMD_MIN_MPS ||
+        drive_pwm_abs_max() < NAV_STUCK_PWM_MIN) {
         reset_stuck_watch();
         return 0u;
     }
@@ -340,368 +355,521 @@ static u8 stuck_detected(u32 now, float cmd_speed)
     return ((u32)(now - stuck_watch_ms) >= NAV_STUCK_TIME_MS) ? 1u : 0u;
 }
 
-static u8 hidden_obstacle_row_detected(u32 now, float cmd_speed)
+static u8 wide_scan_usable(void)
 {
-    if (!NAV_STUCK_ENABLE)
-        return 0u;
+    return (scanner_wide_ready() ||
+            (scanner_mode() == SC_WIDE &&
+             sc.wide_valid_count >= NAV_SCAN_MIN_VALID_POINTS)) ? 1u : 0u;
+}
 
-    if (fabsf(cmd_speed) < NAV_STUCK_CMD_MIN_MPS ||
-        !pwm_force_active(NAV_HIDDEN_ROW_PWM_MIN) ||
-        front_hold_mm <= NAV_OBS_TURN_MM) {
-        reset_hidden_row_watch();
-        return 0u;
+static i8 side_from_gap(const Gap_t *gap)
+{
+    if (gap->found) {
+        if (gap->redirect_deg > 1.0f)
+            return 1;
+        if (gap->redirect_deg < -1.0f)
+            return -1;
     }
-
-    float wheel_speed = (fabsf(ec_l.vel) + fabsf(ec_r.vel)) * 0.5f;
-    float dx = pose.x - hidden_row_watch_x;
-    float dy = pose.y - hidden_row_watch_y;
-    float moved = sqrtf(dx * dx + dy * dy);
-
-    if (wheel_speed > NAV_STUCK_VEL_MAX_MPS ||
-        moved >= NAV_STUCK_PROGRESS_MIN_M) {
-        reset_hidden_row_watch();
-        return 0u;
-    }
-
-    return ((u32)(now - hidden_row_watch_ms) >= NAV_STUCK_TIME_MS) ? 1u : 0u;
-}
-
-static void schedule_turn_to_ex(float target_yaw, NavSt_t after_turn,
-                                u8 is_row_turn)
-{
-    pending_turn_yaw = norm_deg(target_yaw);
-    pending_after_turn = after_turn;
-    pending_turn_is_row = is_row_turn ? 1u : 0u;
-    turn_retry_count = 0u;
-    stop_motion();
-    enter_state(N_TURN_WAIT);
-}
-
-static void schedule_turn_to(float target_yaw, NavSt_t after_turn)
-{
-    schedule_turn_to_ex(target_yaw, after_turn, 0u);
-}
-
-static void schedule_row_turn_to(float target_yaw, NavSt_t after_turn)
-{
-    schedule_turn_to_ex(target_yaw, after_turn, 1u);
-}
-
-static u8 turn_timeout_can_continue(float remaining_deg)
-{
-    if (remaining_deg <= NAV_TURN_ACCEPT_ERR_DEG)
-        return 1u;
-
-    if (pending_turn_is_row &&
-        remaining_deg <= NAV_ROW_TURN_ACCEPT_ERR_DEG)
-        return 1u;
-
-    if ((pending_after_turn == N_ROW_CROSS ||
-         pending_after_turn == N_AVOID_PASS ||
-         pending_after_turn == N_AVOID_REJOIN ||
-         pending_after_turn == N_FWD ||
-         pending_after_turn == N_BRAKE) &&
-        remaining_deg <= NAV_TURN_COARSE_ACCEPT_ERR_DEG)
-        return 1u;
-
-    return 0u;
-}
-
-static u8 scan_blocked_near(void)
-{
-    u8 near_count = 0u;
-    u8 front_count = 0u;
-
-    for (u8 deg = SC_W_MIN; deg <= SC_W_MAX; deg += SC_STEP) {
-        u16 mm = sc.data[deg / SC_STEP];
-        if (mm == 0u || mm == 9999u)
-            continue;
-
-        if (mm <= NAV_BLOCKED_NEAR_MM) {
-            near_count++;
-            if (deg >= 70u && deg <= 110u)
-                front_count++;
-        }
-    }
-
-    return (near_count >= NAV_BLOCKED_NEAR_POINTS &&
-            front_count >= NAV_BLOCKED_FRONT_POINTS) ? 1u : 0u;
-}
-
-static u8 find_open_gap(i8 *side_out, float *angle_out)
-{
-    Gap_t gap;
-    if (!Avoid_FindBestGap(&gap))
-        return 0u;
-
-    i8 side;
-    if (fabsf(gap.redirect_deg) < 1.0f)
-        side = nav.dir;
-    else
-        side = (gap.redirect_deg > 0.0f) ? 1 : -1;
-
-    if (side_out) *side_out = side;
-    if (angle_out) *angle_out = NAV_AVOID_ANGLE_DEG;
-    return 1u;
+    return nav.dir;
 }
 
 static i8 choose_open_side(void)
 {
-    i8 side;
-    if (find_open_gap(&side, 0))
-        return side;
+    Gap_t gap;
+    if (Avoid_FindBestGap(&gap))
+        return side_from_gap(&gap);
 
     long sum_left = 0;
     long sum_right = 0;
-    int count_left = 0;
-    int count_right = 0;
+    int cnt_left = 0;
+    int cnt_right = 0;
 
     for (u8 deg = SC_W_MIN; deg <= SC_W_MAX; deg += SC_STEP) {
-        u16 mm = sc.data[deg / SC_STEP];
-        if (mm == 9999u) mm = 1200u;
-        if (deg > 100u) {
+        u16 mm = scanner_get(deg);
+        if (mm == 0u || mm == 9999u)
+            continue;
+
+        if (deg >= 105u) {
             sum_left += mm;
-            count_left++;
-        } else if (deg < 80u) {
+            cnt_left++;
+        } else if (deg <= 75u) {
             sum_right += mm;
-            count_right++;
+            cnt_right++;
         }
     }
 
-    if (count_left == 0 && count_right == 0)
+    if (cnt_left == 0 && cnt_right == 0)
         return nav.dir;
+    if (cnt_left == 0)
+        return -1;
+    if (cnt_right == 0)
+        return 1;
 
-    return ((count_left ? sum_left / count_left : 0) >=
-            (count_right ? sum_right / count_right : 0)) ? 1 : -1;
+    return ((sum_left / cnt_left) >= (sum_right / cnt_right)) ? 1 : -1;
 }
 
-static ScanClass_t classify_scan(void)
+static float escape_side_score(u8 deg_min, u8 deg_max)
 {
+    long sum = 0;
+    int cnt = 0;
+    int clear_cnt = 0;
+    int near_cnt = 0;
+    int unknown_cnt = 0;
+    u16 min_mm = 9999u;
+
+    for (u8 deg = deg_min; deg <= deg_max; deg += SC_STEP) {
+        u16 mm = scanner_get(deg);
+        if (mm == 0u)
+            continue;
+
+        if (mm == 9999u) {
+            mm = GAP_UNKNOWN_MM;
+            unknown_cnt++;
+        } else if (mm < min_mm) {
+            min_mm = mm;
+        }
+
+        if (mm >= GAP_CLEAR_MM)
+            clear_cnt++;
+        if (mm <= (NAV_OBS_DECIDE_MM + 120u))
+            near_cnt++;
+
+        sum += mm;
+        cnt++;
+    }
+
+    if (cnt == 0)
+        return -10000.0f;
+
+    if (min_mm == 9999u)
+        min_mm = GAP_UNKNOWN_MM;
+
+    float avg = (float)sum / (float)cnt;
+
+    /*
+     * Score cao = thoang hon.
+     * - avg/min lon: ben do rong va xa vat.
+     * - clear_cnt lon: nhieu tia du cho xe di.
+     * - near_cnt lon: vat dang lech/chan ben do, phai tru nang.
+     * - unknown 9999 co the la thoang xa, nhung tru nhe de tranh "ao".
+     */
+    return avg + 0.25f * (float)min_mm
+               + 35.0f * (float)clear_cnt
+               - 180.0f * (float)near_cnt
+               - 25.0f * (float)unknown_cnt;
+}
+
+static i8 choose_object_escape_side(const Gap_t *gap)
+{
+    i8 gap_side = side_from_gap(gap);
+
+    /* Theo quy uoc scan hien tai:
+     * deg >= 95..140 la nua ben trai, deg <= 40..85 la nua ben phai.
+     */
+    float left_score = escape_side_score(95u, 140u);
+    float right_score = escape_side_score(40u, 85u);
+    float diff = left_score - right_score;
+
+    if (diff > 80.0f)
+        return 1;
+    if (diff < -80.0f)
+        return -1;
+
+    return gap_side;
+}
+
+static ObjectMeasure_t estimate_object_from_scan(void)
+{
+    ObjectMeasure_t out = {0};
     int best_start = -1;
     int best_end = -1;
-    int best_score = -1;
-    int best_touches_front = 0;
-    int i = 0;
+    float best_score = -100000.0f;
 
-    while (i < 37) {
+    const u16 max_obj_mm = NAV_OBS_LOOKAHEAD_MM + 300u;
+    int i = (int)(SC_W_MIN / SC_STEP);
+    int n = (int)((SC_W_MAX - SC_W_MIN) / SC_STEP + 1u);
+
+    while (i < n) {
         u16 mm = sc.data[i];
-        if (mm < 60u || mm > 1200u) {
+        if (mm == 0u || mm == 9999u || mm > max_obj_mm) {
             i++;
             continue;
         }
 
         int start = i;
-        int touches_front = (i >= 15 && i <= 21);
-        u16 previous = mm;
-        i++;
+        int end = i;
+        int cnt = 1;
+        int front_touch = 0;
+        long sum = mm;
+        u16 prev = mm;
+        u16 min_mm = mm;
 
-        while (i < 37) {
+        u8 deg = (u8)(SC_W_MIN + i * SC_STEP);
+        if (deg >= 70u && deg <= 110u)
+            front_touch = 1;
+
+        i++;
+        while (i < n) {
             mm = sc.data[i];
-            if (mm < 60u || mm > 1200u)
+            if (mm == 0u || mm == 9999u || mm > max_obj_mm)
                 break;
-            if (ABS_F((float)mm - (float)previous) > NAV_SCAN_SEGMENT_JUMP_MM)
+            if (ABS_F((float)mm - (float)prev) > NAV_SCAN_SEGMENT_JUMP_MM)
                 break;
-            if (i >= 15 && i <= 21) touches_front = 1;
-            previous = mm;
+
+            deg = (u8)(SC_W_MIN + i * SC_STEP);
+            if (deg >= 70u && deg <= 110u)
+                front_touch = 1;
+
+            end = i;
+            cnt++;
+            sum += mm;
+            if (mm < min_mm)
+                min_mm = mm;
+            prev = mm;
             i++;
         }
 
-        int end = i - 1;
-        int count = end - start + 1;
-        int score = count + (touches_front ? 100 : 0);
-        if (score > best_score) {
-            best_score = score;
-            best_start = start;
-            best_end = end;
-            best_touches_front = touches_front;
+        if (cnt >= 2) {
+            float center_deg =
+                (float)(SC_W_MIN + (start + end) * SC_STEP / 2);
+            float avg_mm = (float)sum / (float)cnt;
+            float score = (float)cnt * 35.0f
+                        - avg_mm * 0.15f
+                        - ABS_F(center_deg - 90.0f) * 4.0f
+                        + (front_touch ? 700.0f : 0.0f)
+                        - (float)min_mm * 0.05f;
+
+            if (score > best_score) {
+                best_score = score;
+                best_start = start;
+                best_end = end;
+            }
         }
     }
 
-    if (best_start < 0 || best_end - best_start + 1 < 3)
-        return SCAN_OBJECT;
+    if (best_start < 0 || best_end < best_start)
+        return out;
 
-    int count = best_end - best_start + 1;
-    float mean_x = 0.0f;
-    float mean_y = 0.0f;
+    float y_min = 9999.0f;
+    float y_max = -9999.0f;
+    float front_min = 9999.0f;
+    float sum_d = 0.0f;
+    int cnt = 0;
+
     for (i = best_start; i <= best_end; i++) {
-        float range = (float)sc.data[i] * 0.001f;
-        float alpha = DEG2RAD((float)(i * SC_STEP) - 90.0f);
-        mean_x += range * cosf(alpha);
-        mean_y += range * sinf(alpha);
-    }
-    mean_x /= (float)count;
-    mean_y /= (float)count;
+        u16 mm = sc.data[i];
+        if (mm == 0u || mm == 9999u || mm > max_obj_mm)
+            continue;
 
-    float cxx = 0.0f;
-    float cxy = 0.0f;
-    float cyy = 0.0f;
-    for (i = best_start; i <= best_end; i++) {
-        float range = (float)sc.data[i] * 0.001f;
-        float alpha = DEG2RAD((float)(i * SC_STEP) - 90.0f);
-        float dx = range * cosf(alpha) - mean_x;
-        float dy = range * sinf(alpha) - mean_y;
-        cxx += dx * dx;
-        cxy += dx * dy;
-        cyy += dy * dy;
-    }
-    cxx /= (float)count;
-    cxy /= (float)count;
-    cyy /= (float)count;
+        u8 deg = (u8)(SC_W_MIN + i * SC_STEP);
+        float d_m = (float)mm * 0.001f;
+        float a = DEG2RAD((float)deg - 90.0f);
+        float x = d_m * cosf(a);
+        float y = d_m * sinf(a);
 
-    float axis = 0.5f * atan2f(2.0f * cxy, cxx - cyy);
-    float vx = cosf(axis);
-    float vy = sinf(axis);
-    float trace = cxx + cyy;
-    float disc = sqrtf((cxx - cyy) * (cxx - cyy) + 4.0f * cxy * cxy);
-    float lambda_min = 0.5f * (trace - disc);
-    if (lambda_min < 0.0f) lambda_min = 0.0f;
-
-    float proj_min = 9999.0f;
-    float proj_max = -9999.0f;
-    for (i = best_start; i <= best_end; i++) {
-        float range = (float)sc.data[i] * 0.001f;
-        float alpha = DEG2RAD((float)(i * SC_STEP) - 90.0f);
-        float x = range * cosf(alpha) - mean_x;
-        float y = range * sinf(alpha) - mean_y;
-        float p = x * vx + y * vy;
-        if (p < proj_min) proj_min = p;
-        if (p > proj_max) proj_max = p;
+        if (y < y_min) y_min = y;
+        if (y > y_max) y_max = y;
+        if (x < front_min) front_min = x;
+        sum_d += d_m;
+        cnt++;
     }
 
-    float length = proj_max - proj_min;
-    float line_rms = sqrtf(lambda_min);
-    float seg_start_deg = (float)(best_start * SC_STEP);
-    float seg_end_deg = (float)(best_end * SC_STEP);
-    u8 spans_wall_width =
-        (seg_start_deg <= NAV_WALL_SPAN_LEFT_DEG &&
-         seg_end_deg >= NAV_WALL_SPAN_RIGHT_DEG);
+    if (cnt < 2)
+        return out;
 
-    if (count >= NAV_WALL_MIN_POINTS &&
-        length >= NAV_WALL_MIN_LENGTH_M &&
-        line_rms <= NAV_WALL_LINE_RMS_MAX_M &&
-        (spans_wall_width || best_touches_front)) {
-        if (spans_wall_width ||
-            scan_blocked_near() ||
-            fabsf(vx) < NAV_WALL_END_AXIS_MAX) {
-            return SCAN_WALL_END;
-        }
-        return SCAN_WALL_SIDE;
-    }
+    float avg_d = sum_d / (float)cnt;
+    float edge_pad = avg_d * sinf(DEG2RAD((float)SC_STEP)) * 1.5f;
+    float width = (y_max - y_min) + 2.0f * edge_pad;
+    width = limit(width, NAV_OBJECT_MIN_WIDTH_M, NAV_OBJECT_MAX_WIDTH_M);
 
-    return SCAN_OBJECT;
+    out.found = 1u;
+    out.width_m = width;
+    out.front_m = front_min;
+    out.start_deg = (u8)(SC_W_MIN + best_start * SC_STEP);
+    out.end_deg = (u8)(SC_W_MIN + best_end * SC_STEP);
+    return out;
 }
 
-static void begin_scan(ScanReason_t reason)
+static void set_planned_avoid_from_width(float object_width_m)
 {
-    scan_reason = reason;
+    float half_robot = ROBOT_WIDTH_M * 0.5f;
+    float half_obj = object_width_m * 0.5f;
+
+    planned_object_width_m = object_width_m;
+    planned_avoid_offset_m =
+        limit(half_obj + half_robot + NAV_AVOID_SIDE_SAFE_M,
+              NAV_AVOID_OFFSET_MIN_M,
+              NAV_AVOID_OFFSET_MAX_M);
+
+    /* With a single VL53 at the front, depth is not directly visible.
+     * For box-like objects use front width as a conservative depth estimate,
+     * then add robot length and safety distance.
+     */
+    planned_avoid_pass_m =
+        limit(object_width_m + NAV_ROBOT_LENGTH_M + NAV_AVOID_PASS_SAFE_M,
+              NAV_AVOID_PASS_MIN_M,
+              NAV_AVOID_PASS_MAX_M);
+}
+
+static u8 wall_scan_confident(void)
+{
+    int near_count = 0;
+    int front_near = 0;
+    int first_deg = -1;
+    int last_deg = -1;
+
+    for (u8 deg = 40u; deg <= 140u; deg += SC_STEP) {
+        u16 mm = scanner_get(deg);
+        if (mm == 0u || mm == 9999u || mm > 1000u)
+            continue;
+
+        if (mm <= (NAV_OBS_DECIDE_MM + 220u)) {
+            near_count++;
+            if (first_deg < 0) first_deg = deg;
+            last_deg = deg;
+            if (deg >= 70u && deg <= 110u)
+                front_near++;
+        }
+    }
+
+    if (first_deg < 0)
+        return 0u;
+
+    int span = last_deg - first_deg;
+    return (front_near >= 4 &&
+            near_count >= NAV_WALL_MIN_POINTS &&
+            span >= 55) ? 1u : 0u;
+}
+
+static Scene_t classify_scene(Gap_t *gap_out, i8 *side_out)
+{
+    Gap_t gap = {0};
+    u8 has_gap = Avoid_FindBestGap(&gap);
+    u8 wall = wall_scan_confident();
+
+    if (gap_out)
+        *gap_out = gap;
+
+    if (wall && !has_gap) {
+        if (side_out) *side_out = choose_open_side();
+        return SCENE_WALL;
+    }
+
+    if (wall && has_gap && gap.width_m < (MIN_GAP_M + 0.08f)) {
+        if (side_out) *side_out = choose_open_side();
+        return SCENE_WALL;
+    }
+
+    if (has_gap) {
+        if (side_out) *side_out = choose_object_escape_side(&gap);
+        return SCENE_OBJECT;
+    }
+
+    if (wall) {
+        if (side_out) *side_out = choose_open_side();
+        return SCENE_WALL;
+    }
+
+    if (side_out) *side_out = choose_open_side();
+    return SCENE_UNKNOWN;
+}
+
+static void schedule_turn_to_ex(float yaw_target, NavSt_t after_turn, u8 row_turn)
+{
+    pending_turn_yaw = norm_deg(yaw_target);
+    pending_after_turn = after_turn;
+    pending_turn_is_row = row_turn ? 1u : 0u;
+    stop_motion();
+    enter_state(N_TURN_WAIT);
+}
+
+static void schedule_turn_to(float yaw_target, NavSt_t after_turn)
+{
+    schedule_turn_to_ex(yaw_target, after_turn, 0u);
+}
+
+static void schedule_row_turn_to(float yaw_target, NavSt_t after_turn)
+{
+    schedule_turn_to_ex(yaw_target, after_turn, 1u);
+}
+
+static u8 turn_can_continue(float err_deg)
+{
+    if (err_deg <= NAV_TURN_ACCEPT_ERR_DEG)
+        return 1u;
+
+    if (pending_turn_is_row && err_deg <= NAV_ROW_TURN_ACCEPT_ERR_DEG)
+        return 1u;
+
+    if ((pending_after_turn == N_AVOID_OFFSET ||
+         pending_after_turn == N_AVOID_PASS ||
+         pending_after_turn == N_AVOID_REJOIN) &&
+        err_deg <= NAV_AVOID_TURN_ACCEPT_ERR_DEG)
+        return 1u;
+
+    return 0u;
+}
+
+static void begin_scan(void)
+{
+    scan_for_plan = 0u;
+    clear_obstacle_plan();
     stop_motion();
     enter_state(N_BRAKE);
 }
 
-static void begin_recover(void)
+static void begin_plan_scan(void)
 {
-    scan_reason = SCAN_RECOVER;
+    scan_for_plan = 1u;
+    planned_front_mm = front_hold_mm;
+    if (planned_front_mm == 0u || planned_front_mm == 9999u)
+        planned_front_mm = NAV_OBS_LOOKAHEAD_MM;
+    if (planned_front_mm < NAV_OBS_TURN_MM)
+        planned_front_mm = NAV_OBS_TURN_MM;
+
+    planned_x = pose.x;
+    planned_y = pose.y;
+    planned_run_m =
+        ((float)(planned_front_mm - NAV_OBS_TURN_MM)) * 0.001f;
+
+    stop_motion();
+    enter_state(N_BRAKE);
+}
+
+static void begin_stuck_back(void)
+{
     HeadingHold_SetTarget(yaw);
     stop_motion();
     enter_state(N_STUCK_BACK);
 }
 
-static void begin_row_change_ex(i8 side, float shift_m)
+static void begin_wall_row_change(i8 side)
 {
-    no_gap_backup_done = 0u;
-    reset_search_sweep();
-
     if ((u8)(nav.row + 1u) >= NAV_MAX_ROWS) {
         enter_state(N_DONE);
         return;
     }
 
+    /*
+     * Once a wall is confirmed, row-change has priority:
+     * finish 90 deg turn -> cross to the new row -> turn into the row.
+     * Any object seen by VL53 while the robot is rotating/crossing belongs to
+     * the next scene and must not interrupt this wall maneuver.
+     */
+    clear_obstacle_plan();
+    if (scanner_mode() == SC_WIDE)
+        scanner_wide_consume();
+
     row_shift_side = (side >= 0) ? 1 : -1;
     row_next_yaw = norm_deg(nav.lane_yaw + 180.0f);
-    row_shift_target_m = shift_m;
-    schedule_row_turn_to(nav.lane_yaw + 90.0f * (float)row_shift_side,
+    row_shift_target_m = NAV_WALL_ROW_M;
+
+    schedule_row_turn_to(nav.lane_yaw +
+                         (float)row_shift_side * NAV_AVOID_ANGLE_DEG,
                          N_ROW_CROSS);
 }
 
-static void begin_row_change(i8 side)
+static void begin_length_row_change(void)
 {
-    begin_row_change_ex(side, NAV_ROW_M);
+    begin_wall_row_change(nav.dir);
+    row_shift_target_m = NAV_ROW_M;
 }
 
-static void begin_wall_row_change(i8 side)
-{
-    begin_row_change_ex(side, NAV_WALL_ROW_M);
-}
-
-static void begin_search_turn(void)
-{
-    if (search_dir == 0) {
-        search_dir = choose_open_side();
-        if (search_dir == 0)
-            search_dir = (nav.dir >= 0) ? 1 : -1;
-    }
-
-    if (search_step_count >= NAV_SEARCH_MAX_STEPS) {
-        search_dir = (i8)(-search_dir);
-        search_step_count = 0u;
-    }
-
-    search_step_count++;
-    scan_reason = SCAN_SEARCH;
-
-    float search_yaw =
-        norm_deg(yaw + (float)search_dir * NAV_SEARCH_STEP_DEG);
-    schedule_turn_to(search_yaw, N_BRAKE);
-}
-
-static void begin_avoid_with(i8 side, float angle)
+static void begin_object_avoid(i8 side)
 {
     avoid_resume_yaw = nav.lane_yaw;
     avoid_resume_x0 = nav.x0;
     avoid_resume_y0 = nav.y0;
     avoid_side = (side >= 0) ? 1 : -1;
-    avoid_angle = angle;
 
-    no_gap_backup_done = 0u;
-    reset_search_sweep();
+    /* Lock the VL53 toward the object before the 90-degree avoid turn starts.
+     * Example: if the robot turns left, the object will be on the robot's
+     * right side after the turn, so servo = 0 deg must already point there.
+     */
+    avoid_side_seen = 0u;
+    avoid_side_lost_count = 0u;
+    scanner_lock_angle(object_side_servo_deg());
 
     schedule_turn_to(avoid_resume_yaw +
-                     (float)avoid_side * avoid_angle,
+                     (float)avoid_side * NAV_AVOID_ANGLE_DEG,
                      N_AVOID_OFFSET);
 }
 
-static void handle_scan_result(void)
+static void execute_scene_decision(Scene_t scene, i8 side)
 {
-    ScanClass_t kind = scanner_wide_ready() ? classify_scan() : SCAN_OBJECT;
+    float obj_offset_m = planned_avoid_offset_m;
+    float obj_pass_m = planned_avoid_pass_m;
+
+    clear_obstacle_plan();
+
+    if (scene == SCENE_WALL) {
+        begin_wall_row_change(side);
+    } else if (scene == SCENE_OBJECT) {
+        avoid_offset_m =
+            limit(obj_offset_m,
+                  NAV_AVOID_OFFSET_MIN_M,
+                  NAV_AVOID_OFFSET_MAX_M);
+        avoid_pass_m =
+            limit(obj_pass_m,
+                  NAV_AVOID_PASS_MIN_M,
+                  NAV_AVOID_PASS_MAX_M);
+        begin_object_avoid(side);
+    } else {
+        begin_stuck_back();
+    }
+}
+
+static void plan_from_scan(void)
+{
+    Gap_t gap;
     i8 side = nav.dir;
-    float angle = NAV_AVOID_ANGLE_DEG;
-    u8 has_gap = scanner_wide_ready() ? find_open_gap(&side, &angle) : 0u;
-    u8 wall_blocks_front =
-        (kind == SCAN_WALL_END ||
-         (kind == SCAN_WALL_SIDE && scan_blocked_near())) ? 1u : 0u;
+    Scene_t scene = classify_scene(&gap, &side);
 
-    if (wall_blocks_front) {
-        i8 row_side = has_gap ? side : choose_open_side();
-        scanner_wide_consume();
-        begin_wall_row_change(row_side);
-        return;
-    }
+    planned_scene = scene;
+    planned_side = side;
+    planned_ready = 1u;
 
-    if (has_gap) {
-        scanner_wide_consume();
-        begin_avoid_with(side, angle);
-        return;
-    }
-
-    if (scanner_wide_ready() && scan_blocked_near() && !no_gap_backup_done) {
-        no_gap_backup_done = 1u;
-        scanner_wide_consume();
-        begin_search_turn();
-        return;
+    if (scene == SCENE_OBJECT) {
+        ObjectMeasure_t obj = estimate_object_from_scan();
+        if (obj.found) {
+            set_planned_avoid_from_width(obj.width_m);
+        } else {
+            set_planned_avoid_from_width(NAV_AVOID_OFFSET_M);
+            planned_avoid_offset_m = NAV_AVOID_OFFSET_M;
+            planned_avoid_pass_m = NAV_AVOID_PASS_M;
+        }
+    } else {
+        planned_object_width_m = 0.0f;
+        planned_avoid_offset_m = NAV_AVOID_OFFSET_M;
+        planned_avoid_pass_m = NAV_AVOID_PASS_M;
     }
 
     scanner_wide_consume();
-    begin_search_turn();
+}
+
+static void execute_planned_or_object_fallback(void);
+
+static void handle_scan_result(void)
+{
+    plan_from_scan();
+    execute_planned_or_object_fallback();
+}
+
+static void execute_planned_or_object_fallback(void)
+{
+    Scene_t scene = planned_scene;
+    i8 side = planned_side;
+
+    /* At the 20 cm action point the robot must not sit there scanning
+     * forever.  If the scan is not clear enough to classify, still treat it
+     * as an obstacle and choose the more open side, then rotate 90 degrees.
+     */
+    if (scene == SCENE_UNKNOWN) {
+        side = choose_open_side();
+        scene = SCENE_OBJECT;
+    }
+
+    execute_scene_decision(scene, side);
 }
 
 void nav_init(void)
@@ -711,35 +879,22 @@ void nav_init(void)
     nav.row = 0u;
     nav.done = 0u;
     nav.t0 = HAL_GetTick();
-
     nav_v_cmd = 0.0f;
     reset_front_watch();
-    reset_search_sweep();
-    no_gap_backup_done = 0u;
-    hc_seen_ms[0] = hc_seen_ms[1] = 0u;
-    hc_bad_count[0] = hc_bad_count[1] = 0u;
-
+    reset_stuck_watch();
+    clear_obstacle_plan();
     mission_set_line(yaw, pose.x, pose.y);
-    HeadingHold_SetTrim(0.0f);
     HeadingHold_Enable(1u);
 }
 
 void nav_task(void)
 {
     u32 now = HAL_GetTick();
-    update_cliff_filter();
-
-    u8 mask = cliff_mask();
-    if (mask != 0u && is_moving_state(nav.st)) {
-        cliff_latched_mask = mask;
-        begin_recover();
-        return;
-    }
 
     switch (nav.st) {
     case N_BOOT:
         stop_motion();
-        if ((u32)(now - nav.t0) >= 800u) {
+        if ((u32)(now - nav.t0) >= NAV_BOOT_DELAY_MS) {
             mission_set_line(yaw, pose.x, pose.y);
             enter_state(N_FWD);
         }
@@ -747,46 +902,66 @@ void nav_task(void)
 
     case N_FWD: {
         u16 front;
-        if (take_new_front(&front)) {
+        if (take_new_front(&front))
             front_hold_mm = front;
-            if (front <= NAV_OBS_CONTACT_MM) {
-                if (front_contact_count < 3u) front_contact_count++;
-                if (front_obs_count < 3u) front_obs_count++;
-            } else if (front <= NAV_OBS_TURN_MM) {
-                front_contact_count = 0u;
-                if (front_obs_count < 3u) front_obs_count++;
-            } else {
-                front_contact_count = 0u;
-                front_obs_count = 0u;
-            }
+
+        u8 plan_turn_reached =
+            (planned_ready && planned_distance_done() >= planned_run_m)
+                ? 1u : 0u;
+
+        if (!planned_ready &&
+            front_hold_mm > (NAV_OBS_LOOKAHEAD_MM + 80u)) {
+            clear_obstacle_plan();
+            if (scanner_mode() == SC_WIDE)
+                scanner_wide_consume();
+        } else if (front_hold_mm <= NAV_OBS_LOOKAHEAD_MM &&
+                   planned_ready == 0u) {
+            begin_plan_scan();
+            break;
         }
 
         if (lane_progress() >= NAV_ROW_LENGTH_M) {
-            begin_row_change(nav.dir);
-        } else if (front_contact_count >= 2u) {
-            reset_front_watch();
-            begin_scan(SCAN_OBSTACLE);
-        } else if (front_obs_count >= 2u) {
-            reset_front_watch();
-            begin_scan(SCAN_OBSTACLE);
+            begin_length_row_change();
+        } else if (plan_turn_reached ||
+                   front_hold_mm <= NAV_OBS_TURN_MM) {
+            if (planned_ready) {
+                execute_planned_or_object_fallback();
+            } else {
+                begin_scan();
+            }
         } else {
             drive_lane(speed_for_front(front_hold_mm));
-            if (hidden_obstacle_row_detected(now, g_sp_v))
-                begin_row_change(nav.dir);
-            else if (stuck_detected(now, g_sp_v))
-                begin_recover();
+            if (stuck_detected(now, g_sp_v))
+                begin_stuck_back();
         }
         break;
     }
 
     case N_BRAKE:
         stop_motion();
-        if ((u32)(now - nav.t0) < 200u)
+        if ((u32)(now - nav.t0) < NAV_BRAKE_MS)
             break;
 
-        if (scanner_wide_ready() ||
-            (u32)(now - nav.t0) >= NAV_SCAN_TIMEOUT_MS) {
-            handle_scan_result();
+        if (scan_for_plan) {
+            if (scanner_wide_ready() ||
+                (u32)(now - nav.t0) >= NAV_SCAN_TIMEOUT_MS) {
+                scan_for_plan = 0u;
+                plan_from_scan();
+
+                if (front_hold_mm <= NAV_OBS_TURN_MM) {
+                    execute_planned_or_object_fallback();
+                } else {
+                    resume_forward_keep_plan();
+                }
+            }
+        } else {
+            if (wide_scan_usable() ||
+                (u32)(now - nav.t0) >= NAV_SCAN_TIMEOUT_MS ||
+                (scanner_mode() == SC_WIDE &&
+                 sc.wide_valid_count >= 6u &&
+                 (u32)(now - nav.t0) >= 300u)) {
+                handle_scan_result();
+            }
         }
         break;
 
@@ -798,93 +973,128 @@ void nav_task(void)
         }
         break;
 
-    case N_TURN_ACTIVE:
-        if (turn_done()) {
-            if (turn.timeout) {
-                float remaining = fabsf(angle_diff(pending_turn_yaw, yaw));
-                if (turn_timeout_can_continue(remaining)) {
-                    HeadingHold_SetTarget(pending_turn_yaw);
-                    enter_state(pending_after_turn);
-                } else if (turn_retry_count <
-                           (pending_turn_is_row ? NAV_ROW_TURN_RETRY_MAX
-                                                : NAV_TURN_RETRY_MAX)) {
-                    turn_retry_count++;
-                    HeadingHold_SetTarget(yaw);
-                    enter_state(N_TURN_WAIT);
-                } else if (stuck_pwm_force_active()) {
-                    begin_recover();
-                } else {
-                    begin_scan(SCAN_SEARCH);
-                }
-                break;
-            }
+    case N_TURN_ACTIVE: {
+        float err = fabsf(angle_diff(pending_turn_yaw, yaw));
+        u8 force_row =
+            (pending_turn_is_row &&
+             (u32)(now - nav.t0) >= NAV_ROW_TURN_FORCE_MS &&
+             err <= NAV_ROW_TURN_FORCE_ERR_DEG) ? 1u : 0u;
+        u8 force_avoid =
+            (!pending_turn_is_row &&
+             (pending_after_turn == N_AVOID_OFFSET ||
+              pending_after_turn == N_AVOID_PASS ||
+              pending_after_turn == N_AVOID_REJOIN) &&
+             (u32)(now - nav.t0) >= NAV_AVOID_TURN_FORCE_MS &&
+             err <= NAV_AVOID_TURN_FORCE_ERR_DEG) ? 1u : 0u;
 
+        if ((turn_done() && !turn.timeout) ||
+            turn_can_continue(err) ||
+            force_row ||
+            force_avoid) {
+            stop_motion();
+            turn.state = TR_DONE;
+            turn.done = 1u;
+            turn.timeout = 0u;
             HeadingHold_SetTarget(pending_turn_yaw);
-            turn_retry_count = 0u;
             enter_state(pending_after_turn);
+        } else if (turn_done() && turn.timeout) {
+            begin_stuck_back();
         }
         break;
+    }
 
     case N_ROW_CROSS:
         drive_heading(NAV_SPEED * 0.8f);
-        if ((u32)(now - nav.t0) >= NAV_ROW_CROSS_STUCK_GRACE_MS &&
-            stuck_detected(now, g_sp_v)) {
-            begin_recover();
-            break;
-        }
         if (distance_from_mark() >= row_shift_target_m) {
             nav.row++;
             nav.dir = (i8)(-row_shift_side);
             mission_set_line(row_next_yaw, pose.x, pose.y);
             schedule_row_turn_to(nav.lane_yaw, N_FWD);
+        } else if ((u32)(now - nav.t0) >= NAV_ROW_CROSS_STUCK_GRACE_MS &&
+                   stuck_detected(now, g_sp_v)) {
+            begin_stuck_back();
         }
         break;
 
-    case N_AVOID_OFFSET:
-        drive_heading(NAV_SPEED * 0.7f);
-        if (stuck_detected(now, g_sp_v)) {
-            begin_recover();
-            break;
+    case N_AVOID_OFFSET: {
+        float travelled = distance_from_mark();
+        u8 ignore_front =
+            (travelled < NAV_AVOID_FRONT_IGNORE_M ||
+             (u32)(now - nav.t0) < NAV_AVOID_FRONT_IGNORE_MS) ? 1u : 0u;
+        u8 side_seen_now = side_sensor_sees_object();
+
+        if (side_seen_now) {
+            avoid_side_seen = 1u;
+            avoid_side_lost_count = 0u;
+        } else if (avoid_side_seen && avoid_side_lost_count < 255u) {
+            avoid_side_lost_count++;
         }
-        {
-            u16 front;
-            if (take_new_front(&front) && front <= NAV_OBS_CONTACT_MM) {
-                begin_scan(SCAN_OBSTACLE);
-            } else if (distance_from_mark() >= NAV_AVOID_OFFSET_M) {
-                schedule_turn_to(avoid_resume_yaw, N_AVOID_PASS);
+
+        float offset_target =
+            avoid_side_seen
+                ? ((avoid_offset_m > NAV_AVOID_SIDE_MIN_M)
+                       ? avoid_offset_m
+                       : NAV_AVOID_SIDE_MIN_M)
+                : NAV_AVOID_NO_SIDE_OFFSET_M;
+
+        drive_heading(NAV_AVOID_SPEED);
+
+        if (travelled >= offset_target) {
+            schedule_turn_to(avoid_resume_yaw, N_AVOID_PASS);
+        } else if (!ignore_front && stuck_detected(now, g_sp_v)) {
+            begin_stuck_back();
+        }
+        break;
+    }
+
+    case N_AVOID_PASS: {
+        float travelled = distance_from_mark();
+        u8 side_seen_now = side_sensor_sees_object();
+
+        drive_heading(NAV_AVOID_SPEED);
+
+        if (avoid_pass_phase == 0u) {
+            if (side_seen_now) {
+                avoid_side_seen = 1u;
+                avoid_side_lost_count = 0u;
+            } else if (avoid_side_seen) {
+                if (avoid_side_lost_count < 255u)
+                    avoid_side_lost_count++;
             }
-        }
-        break;
 
-    case N_AVOID_PASS:
-        drive_heading(NAV_SPEED * 0.75f);
-        if (stuck_detected(now, g_sp_v)) {
-            begin_recover();
-            break;
-        }
-        {
-            u16 front;
-            if (take_new_front(&front))
-                front_hold_mm = front;
-
-            if (front_hold_mm <= NAV_OBS_CONTACT_MM) {
-                begin_scan(SCAN_OBSTACLE);
-            } else if (distance_from_mark() >= NAV_AVOID_PASS_M &&
-                       front_hold_mm > NAV_OBS_TURN_MM) {
+            if (!avoid_side_seen && travelled >= NAV_PASS_NO_OBJECT_M) {
                 schedule_turn_to(avoid_resume_yaw -
-                                 (float)avoid_side * avoid_angle,
+                                 (float)avoid_side * NAV_AVOID_ANGLE_DEG,
                                  N_AVOID_REJOIN);
+                break;
             }
+
+            if ((avoid_side_seen &&
+                 avoid_side_lost_count >= NAV_SIDE_LOST_COUNT) ||
+                travelled >= avoid_pass_m) {
+                avoid_pass_phase = 1u;
+                mark_position();
+                break;
+            }
+
+            if (travelled > NAV_AVOID_FRONT_IGNORE_M &&
+                stuck_detected(now, g_sp_v)) {
+                begin_stuck_back();
+            }
+            break;
+        }
+
+        if (distance_from_mark() >= NAV_AFTER_OBJECT_CLEAR_M) {
+            schedule_turn_to(avoid_resume_yaw -
+                             (float)avoid_side * NAV_AVOID_ANGLE_DEG,
+                             N_AVOID_REJOIN);
+        } else if (stuck_detected(now, g_sp_v)) {
+            begin_stuck_back();
         }
         break;
+    }
 
     case N_AVOID_REJOIN: {
-        drive_heading(NAV_SPEED * 0.45f);
-        if (stuck_detected(now, g_sp_v)) {
-            begin_recover();
-            break;
-        }
-
         float e = cross_error_for(avoid_resume_yaw,
                                   avoid_resume_x0,
                                   avoid_resume_y0);
@@ -894,12 +1104,17 @@ void nav_task(void)
             (fabsf(rejoin_start_error) > NAV_AVOID_REJOIN_LEAD_M &&
              (rejoin_start_error * e) <= 0.0f);
 
-        if ((travelled > 0.10f && (near_lane || crossed_lane)) ||
-            travelled >= NAV_AVOID_REJOIN_M) {
+        drive_heading(NAV_SPEED * 0.55f);
+
+        if (travelled >= avoid_offset_m ||
+            (travelled >= (avoid_offset_m * 0.75f) &&
+             (near_lane || crossed_lane))) {
             mission_set_line(avoid_resume_yaw,
                              avoid_resume_x0,
                              avoid_resume_y0);
             schedule_turn_to(nav.lane_yaw, N_FWD);
+        } else if (stuck_detected(now, g_sp_v)) {
+            begin_stuck_back();
         }
         break;
     }
@@ -908,7 +1123,7 @@ void nav_task(void)
         drive_heading(-NAV_STUCK_BACK_SPEED);
         if (distance_from_mark() >= NAV_STUCK_BACK_M ||
             (u32)(now - nav.t0) >= NAV_STUCK_BACK_TIMEOUT_MS) {
-            begin_scan(SCAN_RECOVER);
+            begin_scan();
         }
         break;
 
@@ -917,11 +1132,6 @@ void nav_task(void)
     case N_CLIFF_DECIDE:
     case N_CLIFF_SCAN:
     case N_CLIFF_ESCAPE:
-        /* HC-SR04 cliff is disabled in the current hardware setup. If it is
-         * enabled later, keep recovery separate from the mission line. */
-        begin_recover();
-        break;
-
     case N_DONE:
     default:
         stop_motion();

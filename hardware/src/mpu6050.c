@@ -74,19 +74,24 @@ void mpu6050_Calibrate(void)
 {
 
 
-    long sumGZ = 0;
-    // doc 2000 lan de lay gia tri trung binh sai so tinh
-    for (int i = 0; i < 2000; i++) {
-        uint8_t gy_data[6];
-        HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, 0x43, 1, gy_data, 6, 10);
-        int16_t gz_raw = (int16_t)(gy_data[4] << 8 | gy_data[5]);
-        sumGZ += gz_raw;
-        HAL_Delay(1);
+     long gz_sum = 0;
+    int samples = 500;
+    uint8_t data[2];
+    
+    // Bỏ qua một vài giá trị nhiễu ban đầu
+    HAL_Delay(100);
+
+    // Lấy mẫu và tính trung bình
+    for(int i = 0; i < samples; i++) {
+        HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, 0x47, 1, data, 2, 10);
+        int16_t raw_gz = (int16_t)(data[0] << 8 | data[1]);
+        gz_sum += raw_gz;
+        HAL_Delay(10); 
     }
-    // Tinh toan gi tri offset sang float
-    GZ_calib = (float)(sumGZ / 2000.0f) / 131.0f;
-		// Reset yaw ve 0 sau khi calibrate
-    yaw = 0.0f;
+    
+    // Tính ra sai số tĩnh chuẩn xác (chia 131.0f tương ứng với dải đo MPU)
+    GZ_calib = (float)(gz_sum / (float)samples) / 131.0f;
+    yaw = 0.0f; // Reset góc về 0 sau khi calib
     /*
     long  sum  = 0;
     double sumsq = 0.0;
@@ -139,7 +144,7 @@ void mpu6050_processYaw(float dt)
     float gz_corrected = GZ - GZ_calib;
 
     // Bộ lọc vùng chết (Dead-zone) tránh trôi góc khi robot đứng yên
-    if (gz_corrected > -0.05f && gz_corrected < 0.05f) {
+    if (gz_corrected > -GZ_deadzone && gz_corrected < GZ_deadzone) {
         gz_corrected = 0.0f;
     }
 
@@ -200,8 +205,17 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     			ec_r.active = 0;
     		}
 
-			/* Navigation runs in Robot_Loop(). Keep the interrupt short and only
-			 * request the single rate-limited control/PID task here. */
+            /*
+    		if (turn.state == TR_IDLE || turn.state == TR_DONE || turn.state == TR_TOUT)
+    		{
+    		    HeadingHold_Task();
+    		}
+    		else
+    		{
+    		    turn_task();
+    		}
+            */
+           // nav_task();
 			Control_Task20ms();
 
         }

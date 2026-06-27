@@ -90,16 +90,32 @@ _vo u8  Flag_Target ;
 _vo float heading_target = 0.0f;
 statInfo_t_VL53L0X stat;
 _vo u8  Flag = 0;
+u8 state = 0;
 void Debug_Print1(void)
 {
 
     // Sửa lại định dạng chuỗi: Thêm dấu '>' trước mỗi tên biến để TelePlot nhận diện được từng biến riêng biệt
-	sprintf(uart_buf, "li:   %u\r\n",
-	            di
-	    );
+    static u32 t_uart = 0u;
+    u32 now = HAL_GetTick();
+    if ((u32)(now - t_uart) < 50u) {
+        return;
+    }
+    t_uart = now;
+    float yaw_err = mpu6050_angleDiff(heading_target, yaw);
+    sprintf(uart_buf,
+            ">setL:%.3f velL:%.3f pwmL:%d setR:%.3f velR:%.3f pwmR:%d yaw:%.2f target:%.2f err:%.2f\n",
+            sl,
+            ec_l.vel,
+            p_l,
+            sr,
+            ec_r.vel,
+            p_r,
+            yaw,
+            heading_target,
+            yaw_err);
 
+        HAL_UART_Transmit(&huart1, (u8*)uart_buf, strlen(uart_buf), 30);
 
-    HAL_UART_Transmit(&huart1, (u8*)uart_buf, strlen(uart_buf), 10);
 }
 void Debug_Print2(void)
 {
@@ -109,16 +125,14 @@ void Debug_Print2(void)
 void Debug_Print(void)
 {
     // Sử dụng trực tiếp biến toàn cục lidarDistance từ file navigation.h
-    sprintf(uart_buf, ">sl:%.2f		>vl:%.2f		>pl:%d		>sr:%.2f		>vr:%.2f		>pr:%d		>yaw:%2.f		>lidar:%u\n",
+    sprintf(uart_buf, "%.2f///%.2f %d   //%.2f///%.2f/ %d\n",
             sl,
             ec_l.vel,
             p_l,
             sr,
             ec_r.vel,
-            p_r,
-						yaw,
-            d // Đổi từ dist thành lidarDistance để lấy từ lõi thuật toán điều hướng
-    );
+            p_r
+           );
     HAL_UART_Transmit(&huart1, (u8*)uart_buf, strlen(uart_buf), 10);
 }
 /* USER CODE END 0 */
@@ -178,11 +192,58 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	Robot_Loop();
-	 //Debug_Print();
+	  Robot_Loop();
+	   //Debug_Print();
+	  /*
+     static u8 side = 0u;
+     static u8 straight_lock = 0u;
+
+     if(state == 0)
+     {
+         if(!straight_lock)
+         {
+             ec_l.dist = 0.0f;
+             ec_r.dist = 0.0f;
+             HeadingHold_SetTarget(yaw);
+             straight_lock = 1u;
+         }
+
+         g_sp_v = 0.13f;
+
+         float d = (ABS_F(ec_l.dist) + ABS_F(ec_r.dist)) * 0.5f;
+         if(d >= 1.0f)
+         {
+             g_sp_v = 0.0f;
+             straight_lock = 0u;
+             turn_start(90.0f);
+             state = 1u;
+         }
+     }
+     else if(state == 1)
+     {
+         g_sp_v = 0.0f;
+
+         if(turn.done)
+         {
+             side++;
+             if(side >= 4u)
+             {
+                 side = 0u;
+             }
+
+             ec_l.dist = 0.0f;
+             ec_r.dist = 0.0f;
+             HeadingHold_SetTarget(yaw);
+             state = 0u;
+         }
+     }
+
+     Control_Task20ms();
+     Debug_Print();
+     */
+    
 
 
-	   //  Debug_Print1();
 
 
 

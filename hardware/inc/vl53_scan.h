@@ -12,17 +12,18 @@
 #include "VL53L0X.h"
 #include "main.h"
 #include "types.h"
-#define SC_OBS_MM    400u   /* < 40cm → wide mode */
+#define SC_OBS_MM    600u   /* < 60cm: start wide scan early for planning */
 #define SC_CLEAR_MM  600u   /* > 60cm × 5 → narrow mode */
 #define SC_N_MIN      50u
 #define SC_N_MAX     130u
 #define SC_W_MIN       0u
 #define SC_W_MAX     180u
 #define SC_STEP        5u
-#define SC_WAIT_MS    22u   /* servo settle */
+#define SC_WAIT_MS    18u   /* servo settle */
 #define SC_SAMPLE_MAX_AGE_MS       1200u
 #define SC_FRONT_NARROW_MAX_AGE_MS  700u
 #define SC_FRONT_WIDE_MAX_AGE_MS   1200u
+#define SC_LOCK_MAX_AGE_MS          200u
 
 typedef enum{
     SC_IDLE,
@@ -49,6 +50,11 @@ typedef struct{
     u16 front_mm;          /* median of the last complete front frame */
     u32 front_stamp;
     u32 front_seq;         /* increments once per complete front frame */
+    u8 locked;             /* 1 = servo locked to lock_angle */
+    u8 lock_angle;
+    u16 lock_mm;
+    u32 lock_stamp;
+    u32 lock_seq;
     u8 done; u32 cycle;
     u8 clear_cnt;
 } Scanner_t;
@@ -66,4 +72,8 @@ u8 scanner_wide_ready(void);
 void scanner_request_wide(void);
 void scanner_wide_consume(void);
 u32 scanner_front_seq(void);
+void scanner_lock_angle(u8 deg);
+void scanner_unlock(void);
+u16 scanner_locked_mm(void);
+u32 scanner_locked_seq(void);
 #endif /* INC_VL53_SCAN_H_ */

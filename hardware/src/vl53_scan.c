@@ -64,6 +64,33 @@ void scanner_wide_consume(void)
     _enter_narrow();
 }
 
+void scanner_lock_angle(u8 deg)
+{
+    if (deg > 180u) deg = 180u;
+    sc.locked = 1u;
+    sc.lock_angle = deg;
+    sc.angle = deg;
+    _svo(deg);
+    sc.t_servo = HAL_GetTick();
+    sc.lock_mm = 9999u;
+    sc.lock_stamp = 0u;
+    sc.lock_seq = 0u;
+    sc.wide_ready = 0u;
+    sc.wide_hold = 0u;
+    sc.front_mask = 0u;
+    sc.mode = SC_NARROW;
+    sc.state = SC_WAIT;
+}
+
+void scanner_unlock(void)
+{
+    sc.locked = 0u;
+    sc.lock_mm = 9999u;
+    sc.lock_stamp = 0u;
+    _enter_narrow();
+    sc.state = SC_MOVE;
+}
+
 void scanner_init(void)
 {
     for (int i = 0; i < 37; i++) {
@@ -85,6 +112,11 @@ void scanner_init(void)
     sc.front_mm = 9999u;
     sc.front_stamp = 0u;
     sc.front_seq = 0u;
+    sc.locked = 0u;
+    sc.lock_angle = 90u;
+    sc.lock_mm = 9999u;
+    sc.lock_stamp = 0u;
+    sc.lock_seq = 0u;
     _svo(sc.angle);
     HAL_Delay(50);
 }
@@ -92,6 +124,34 @@ void scanner_init(void)
 void scanner_task(void)
 {
     uint32_t now = HAL_GetTick();
+
+    if (sc.locked) {
+        switch (sc.state) {
+        case SC_IDLE:
+        case SC_MOVE:
+            sc.angle = sc.lock_angle;
+            _svo(sc.lock_angle);
+            sc.t_servo = now;
+            sc.state = SC_WAIT;
+            break;
+
+        case SC_WAIT:
+            if (now - sc.t_servo >= SC_WAIT_MS)
+                sc.state = SC_READ;
+            break;
+
+        case SC_READ:
+            d = (uint16_t)readRangeContinuousMillimeters(0);
+            if (d == 0 || d > 2000u) d = 9999u;
+            sc.lock_mm = d;
+            sc.lock_stamp = now;
+            sc.lock_seq++;
+            sc.state = SC_MOVE;
+            break;
+        }
+        return;
+    }
+
     switch (sc.state) {
 
     case SC_IDLE:
@@ -207,6 +267,16 @@ u16 scanner_front(void) {
 }
 
 u32 scanner_front_seq(void) { return sc.front_seq; }
+
+u16 scanner_locked_mm(void)
+{
+    if (!sc.locked || sc.lock_stamp == 0u ||
+        (u32)(HAL_GetTick() - sc.lock_stamp) > SC_LOCK_MAX_AGE_MS)
+        return 9999u;
+    return sc.lock_mm;
+}
+
+u32 scanner_locked_seq(void) { return sc.lock_seq; }
 
 u8 scanner_has_obs(void)
 {

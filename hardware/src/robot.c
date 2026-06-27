@@ -40,6 +40,8 @@ void Robot_Init(void)
     mpu6050_Init();
     mpu6050_Calibrate();
     hcsr04_init();
+	HeadingHold_SetTarget(yaw);    
+	HeadingHold_Enable(1); 
 
     /* Scanner controls TIM3 CH1 directly; Servo.c is intentionally unused. */
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
@@ -77,6 +79,7 @@ void Robot_Loop(void)
 	 * 20 ms slot, Control_Task20ms() returns without running PID twice. */
 	Control_Task20ms();
 
+	/*
 	if((u32)(now_hc - t_debug) >= 500u){
 		t_debug = now_hc;
 		int n = snprintf(debug_line, sizeof(debug_line),
@@ -98,12 +101,13 @@ void Robot_Loop(void)
 			HAL_UART_Transmit(&huart1, (u8*)debug_line, (u16)n, 30u);
 		}
 	}
-	
+	*/
 	if((u32)(now_hc - t) >= 150u){
 		t = now_hc;
 		OLED_DrawRadarMap();
 	}
 	
+
 
 
 }

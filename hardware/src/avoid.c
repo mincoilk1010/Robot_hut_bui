@@ -20,19 +20,35 @@ uint8_t Avoid_FindBestGap(Gap_t *out)
         int start = i;
         long sum = 0;
         int cnt = 0;
+        int unknown_cnt = 0;
+        int real_cnt = 0;
 
         while (i < n && sc.data[i] >= GAP_CLEAR_MM) {
             if (sc.data[i] == 9999u) {
-                sum += 1500;
+                sum += GAP_UNKNOWN_MM;
+                unknown_cnt++;
             } else {
                 sum += sc.data[i];
+                real_cnt++;
             }
             cnt++;
             i++;
         }
 
         int end = i - 1;
-        if (cnt == 0)
+        if (cnt == 0) {
+            i++;
+            continue;
+        }
+
+        /* Do not let unmeasured 9999 bins become a fake escape path.  A valid
+         * gap must contain some real VL53 samples; unknown bins may extend a
+         * real opening, but must not dominate it. */
+        if (real_cnt < (int)GAP_REAL_MIN_POINTS)
+            continue;
+        if (unknown_cnt == cnt && cnt < GAP_UNKNOWN_MIN_SPAN_POINTS)
+            continue;
+        if (unknown_cnt > real_cnt * (int)GAP_UNKNOWN_MAX_RATIO)
             continue;
 
         uint16_t avg_mm = (uint16_t)(sum / cnt);
@@ -55,7 +71,9 @@ uint8_t Avoid_FindBestGap(Gap_t *out)
             (uint8_t)(SC_W_MIN + (start + end) * SC_STEP / 2);
 
         float dev_penalty = ABS_F((float)center_deg - 90.0f) * 2.0f;
-        float score = (float)avg_mm - dev_penalty;
+        float unknown_penalty =
+            (float)unknown_cnt * GAP_UNKNOWN_PENALTY_MM;
+        float score = (float)avg_mm - dev_penalty - unknown_penalty;
 
         if (score > best_score) {
             best_score = score;

@@ -40,13 +40,12 @@ typedef int32_t i32;
 #define pid_out_min        -999.0f
 #define pid_out_max        999.0f
 
-/* Motor static-friction compensation. Tune LEFT/RIGHT independently after
- * measuring the first PWM value that makes each wheel rotate reliably. */
+
 #define MOTOR_PWM_FF_L       180.0f
 #define MOTOR_PWM_FF_R       180.0f
-#define MOTOR_PWM_MIN_L      260.0f
-#define MOTOR_PWM_MIN_R      260.0f
-#define MOTOR_PWM_SLEW_STEP   35.0f  /* maximum PWM change per 20 ms */
+#define MOTOR_PWM_MIN_L      160.0f
+#define MOTOR_PWM_MIN_R      160.0f
+#define MOTOR_PWM_SLEW_STEP   35.0f
 #define MOTOR_SP_DEADBAND       0.003f
 
 

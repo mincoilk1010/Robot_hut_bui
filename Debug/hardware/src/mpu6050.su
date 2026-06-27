@@ -1,7 +1,7 @@
 ../hardware/src/mpu6050.c:32:13:_bias_retrack	16	static
 ../hardware/src/mpu6050.c:41:6:mpu6050_Init	32	static
 ../hardware/src/mpu6050.c:73:6:mpu6050_Calibrate	40	static
-../hardware/src/mpu6050.c:123:6:mpu6050_readGyroZ	32	static
-../hardware/src/mpu6050.c:136:6:mpu6050_processYaw	24	static
-../hardware/src/mpu6050.c:160:7:mpu6050_angleDiff	24	static
-../hardware/src/mpu6050.c:168:6:HAL_GPIO_EXTI_Callback	32	static
+../hardware/src/mpu6050.c:128:6:mpu6050_readGyroZ	32	static
+../hardware/src/mpu6050.c:141:6:mpu6050_processYaw	24	static
+../hardware/src/mpu6050.c:165:7:mpu6050_angleDiff	24	static
+../hardware/src/mpu6050.c:173:6:HAL_GPIO_EXTI_Callback	32	static
