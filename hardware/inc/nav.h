@@ -11,7 +11,7 @@
 #define NAV_OBS_LOOKAHEAD_MM   600u
 #define NAV_OBS_DECIDE_MM      350u
 #define NAV_OBS_SLOW_MM        600u
-#define NAV_OBS_TURN_MM        200u
+#define NAV_OBS_TURN_MM        150u
 #define NAV_OBS_CONTACT_MM     160u
 #define NAV_ROW_LENGTH_M       2.80f
 #define NAV_ACCEL_MPS2         0.40f
@@ -68,6 +68,9 @@
 
 #define NAV_SCAN_SEGMENT_JUMP_MM 200.0f
 #define NAV_WALL_MIN_POINTS       8u
+#define NAV_WALL_NEAR_EXTRA_MM  120u
+#define NAV_WALL_BROAD_SPAN_DEG  70u
+#define NAV_WALL_MID_SPAN_DEG    55u
 #define NAV_WALL_MIN_LENGTH_M     0.55f
 #define NAV_WALL_LINE_RMS_MAX_M   0.08f
 #define NAV_WALL_SPAN_LEFT_DEG   65.0f
@@ -102,15 +105,6 @@
 #define NAV_ROW_TURN_FORCE_MS  2600u
 #define NAV_ROW_TURN_FORCE_ERR_DEG 7.0f
 
-#define NAV_CLIFF_BACK_M       0.10f
-#define NAV_CLIFF_ESCAPE_M     0.18f
-#define NAV_CLIFF_SPEED        0.06f
-#define NAV_CLIFF_ENABLE       0u   /* HC-SR04 is not connected yet */
-
-/* Swap these two values if the physical HC-SR04 wiring is reversed. */
-#define HC_LEFT_INDEX          0u
-#define HC_RIGHT_INDEX         1u
-
 typedef enum {
     N_BOOT = 0,
     N_FWD,
@@ -121,11 +115,6 @@ typedef enum {
     N_AVOID_OFFSET,
     N_AVOID_PASS,
     N_AVOID_REJOIN,
-    N_CLIFF_CONFIRM,
-    N_CLIFF_BACK,
-    N_CLIFF_DECIDE,
-    N_CLIFF_SCAN,
-    N_CLIFF_ESCAPE,
     N_DONE,
     N_STUCK_BACK
 } NavSt_t;

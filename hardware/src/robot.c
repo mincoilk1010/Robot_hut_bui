@@ -39,11 +39,9 @@ void Robot_Init(void)
 
     mpu6050_Init();
     mpu6050_Calibrate();
-    hcsr04_init();
 	HeadingHold_SetTarget(yaw);    
 	HeadingHold_Enable(1); 
 
-    /* Scanner controls TIM3 CH1 directly; Servo.c is intentionally unused. */
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
     scanner_init();
 
@@ -55,23 +53,13 @@ void Robot_Loop(void)
 {
 	scanner_task();
 
-	static u32 t_hc = 0;
 	static u32 t_nav = 0;
-	static u32 t_debug = 0;
-	static char debug_line[240];
-	u32 now_hc = HAL_GetTick();
-	hcsr04_check_timeout();
-	/* hcsr04_read() alternates left/right, so 35 ms here gives each sensor
-	 * a new sample about every 70 ms without acoustic cross-talk. */
-	if((u32)(now_hc - t_hc) >= 35u){
-		t_hc = now_hc;
-		hcsr04_read();
-	}
+	u32 now = HAL_GetTick();
 
 	/* Navigation owns state transitions and setpoints. The 20 ms MPU ISR
 	 * remains the single owner of heading/turn and wheel PID execution. */
-	if((u32)(now_hc - t_nav) >= dt_ms){
-		t_nav = now_hc;
+	if((u32)(now - t_nav) >= dt_ms){
+		t_nav = now;
 		nav_task();
 	}
 
@@ -79,35 +67,10 @@ void Robot_Loop(void)
 	 * 20 ms slot, Control_Task20ms() returns without running PID twice. */
 	Control_Task20ms();
 
-	/*
-	if((u32)(now_hc - t_debug) >= 500u){
-		t_debug = now_hc;
-		int n = snprintf(debug_line, sizeof(debug_line),
-			"DBG t=%lu nav=%u v=%.3f w=%.3f front=%u fseq=%lu "
-			"sm=%u wr=%u hcL=%lu hcR=%lu sl=%.3f sr=%.3f "
-			"pl=%d pr=%d c1=%lu c2=%lu c3=%lu c4=%lu turn=%u\r\n",
-			(unsigned long)now_hc, (unsigned)nav.st,
-			(double)g_sp_v, (double)g_sp_w,
-			(unsigned)scanner_front(), (unsigned long)sc.front_seq,
-			(unsigned)sc.mode, (unsigned)sc.wide_ready,
-			(unsigned long)hc[HC_LEFT_INDEX].d,
-			(unsigned long)hc[HC_RIGHT_INDEX].d,
-			(double)sl, (double)sr, (int)p_l, (int)p_r,
-			(unsigned long)TIM4->CCR1, (unsigned long)TIM4->CCR2,
-			(unsigned long)TIM4->CCR3, (unsigned long)TIM4->CCR4,
-			(unsigned)turn.state);
-		if(n > 0){
-			if(n >= (int)sizeof(debug_line)) n = (int)sizeof(debug_line) - 1;
-			HAL_UART_Transmit(&huart1, (u8*)debug_line, (u16)n, 30u);
-		}
-	}
-	*/
-	if((u32)(now_hc - t) >= 150u){
-		t = now_hc;
+	if((u32)(now - t) >= 150u){
+		t = now;
 		OLED_DrawRadarMap();
 	}
 	
-
-
 
 }

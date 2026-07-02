@@ -15,7 +15,6 @@
 #include "vl53_scan.h"
 #include "avoid.h"
 #include "stm32f4xx_hal.h"
-#include "hc_sr04.h"
 #include "mpu6050.h"
 #include "motor.h"
 #include "OLED.h"

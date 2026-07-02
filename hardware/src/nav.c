@@ -1,7 +1,6 @@
 #include "nav.h"
 #include "control.h"
 #include "vl53_scan.h"
-#include "hc_sr04.h"
 #include "avoid.h"
 #include "encoder.h"
 #include <math.h>
@@ -19,6 +18,17 @@ typedef struct {
     u8 start_deg;
     u8 end_deg;
 } ObjectMeasure_t;
+
+typedef struct {
+    u8 found;
+    int count;
+    int front_count;
+    int first_deg;
+    int last_deg;
+    int span_deg;
+    u16 min_mm;
+    u16 avg_mm;
+} FrontBlock_t;
 
 Nav_t nav = {
     .st = N_BOOT,
@@ -183,6 +193,11 @@ static u8 side_sensor_sees_object(void)
 {
     u16 mm = scanner_locked_mm();
     return (mm != 9999u && mm <= NAV_SIDE_OBJECT_MM) ? 1u : 0u;
+}
+
+static u8 scan_mm_is_near(u16 mm, u16 near_limit_mm)
+{
+    return (mm != 0u && mm != 9999u && mm <= near_limit_mm) ? 1u : 0u;
 }
 
 static void mission_set_line(float yaw_deg, float x0, float y0)
@@ -611,34 +626,103 @@ static void set_planned_avoid_from_width(float object_width_m)
               NAV_AVOID_PASS_MAX_M);
 }
 
-static u8 wall_scan_confident(void)
+static FrontBlock_t front_near_block(u16 near_limit_mm)
 {
-    int near_count = 0;
-    int front_near = 0;
-    int first_deg = -1;
-    int last_deg = -1;
+    FrontBlock_t best = {0};
+    float best_score = -100000.0f;
+    u8 deg = 40u;
 
-    for (u8 deg = 40u; deg <= 140u; deg += SC_STEP) {
+    while (deg <= 140u) {
         u16 mm = scanner_get(deg);
-        if (mm == 0u || mm == 9999u || mm > 1000u)
+        if (!scan_mm_is_near(mm, near_limit_mm)) {
+            deg += SC_STEP;
             continue;
+        }
 
-        if (mm <= (NAV_OBS_DECIDE_MM + 220u)) {
-            near_count++;
-            if (first_deg < 0) first_deg = deg;
+        int start_deg = deg;
+        int last_deg = deg;
+        int count = 0;
+        int front_count = 0;
+        long sum = 0;
+        u16 min_mm = mm;
+        u16 prev_mm = mm;
+
+        while (deg <= 140u) {
+            mm = scanner_get(deg);
+            if (!scan_mm_is_near(mm, near_limit_mm))
+                break;
+            if (count > 0 &&
+                ABS_F((float)mm - (float)prev_mm) >
+                    NAV_SCAN_SEGMENT_JUMP_MM)
+                break;
+
             last_deg = deg;
             if (deg >= 70u && deg <= 110u)
-                front_near++;
+                front_count++;
+
+            if (mm < min_mm)
+                min_mm = mm;
+            sum += mm;
+            count++;
+            prev_mm = mm;
+            deg += SC_STEP;
+        }
+
+        if (count > 0) {
+            int span = last_deg - start_deg;
+            if (span <= 0)
+                span = SC_STEP;
+
+            float center = (float)(start_deg + last_deg) * 0.5f;
+            float score = (float)front_count * 120.0f
+                        + (float)count * 25.0f
+                        + (float)span * 4.0f
+                        - ABS_F(center - 90.0f) * 2.0f
+                        - (float)min_mm * 0.03f;
+
+            if (score > best_score) {
+                best_score = score;
+                best.found = 1u;
+                best.count = count;
+                best.front_count = front_count;
+                best.first_deg = start_deg;
+                best.last_deg = last_deg;
+                best.span_deg = span;
+                best.min_mm = min_mm;
+                best.avg_mm = (u16)(sum / count);
+            }
         }
     }
 
-    if (first_deg < 0)
+    return best;
+}
+
+static u8 wall_scan_confident(void)
+{
+    u16 near_limit_mm =
+        (u16)(NAV_OBS_LOOKAHEAD_MM + NAV_WALL_NEAR_EXTRA_MM);
+    FrontBlock_t block = front_near_block(near_limit_mm);
+
+    if (!block.found)
         return 0u;
 
-    int span = last_deg - first_deg;
-    return (front_near >= 4 &&
-            near_count >= NAV_WALL_MIN_POINTS &&
-            span >= 55) ? 1u : 0u;
+    if (block.front_count < 4)
+        return 0u;
+
+    if (block.count < (int)NAV_WALL_MIN_POINTS)
+        return 0u;
+
+    /* Wall is not full 0..180.  It is a broad near block in the forward
+     * sector.  The side edges may read far/9999 and must not turn a real wall
+     * into an object. */
+    if (block.span_deg >= (int)NAV_WALL_BROAD_SPAN_DEG)
+        return 1u;
+
+    if (block.span_deg >= (int)NAV_WALL_MID_SPAN_DEG &&
+        block.min_mm <= (u16)(NAV_OBS_DECIDE_MM + 220u))
+        return 1u;
+
+    return 0u;
 }
 
 static Scene_t classify_scene(Gap_t *gap_out, i8 *side_out)
@@ -650,12 +734,7 @@ static Scene_t classify_scene(Gap_t *gap_out, i8 *side_out)
     if (gap_out)
         *gap_out = gap;
 
-    if (wall && !has_gap) {
-        if (side_out) *side_out = choose_open_side();
-        return SCENE_WALL;
-    }
-
-    if (wall && has_gap && gap.width_m < (MIN_GAP_M + 0.08f)) {
+    if (wall) {
         if (side_out) *side_out = choose_open_side();
         return SCENE_WALL;
     }
@@ -663,11 +742,6 @@ static Scene_t classify_scene(Gap_t *gap_out, i8 *side_out)
     if (has_gap) {
         if (side_out) *side_out = choose_object_escape_side(&gap);
         return SCENE_OBJECT;
-    }
-
-    if (wall) {
-        if (side_out) *side_out = choose_open_side();
-        return SCENE_WALL;
     }
 
     if (side_out) *side_out = choose_open_side();
@@ -1127,11 +1201,6 @@ void nav_task(void)
         }
         break;
 
-    case N_CLIFF_CONFIRM:
-    case N_CLIFF_BACK:
-    case N_CLIFF_DECIDE:
-    case N_CLIFF_SCAN:
-    case N_CLIFF_ESCAPE:
     case N_DONE:
     default:
         stop_motion();
