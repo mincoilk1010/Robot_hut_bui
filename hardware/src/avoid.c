@@ -40,10 +40,7 @@ uint8_t Avoid_FindBestGap(Gap_t *out)
             i++;
             continue;
         }
-
-        /* Do not let unmeasured 9999 bins become a fake escape path.  A valid
-         * gap must contain some real VL53 samples; unknown bins may extend a
-         * real opening, but must not dominate it. */
+        
         if (real_cnt < (int)GAP_REAL_MIN_POINTS)
             continue;
         if (unknown_cnt == cnt && cnt < GAP_UNKNOWN_MIN_SPAN_POINTS)
@@ -61,9 +58,6 @@ uint8_t Avoid_FindBestGap(Gap_t *out)
         float avg_d_m = (float)avg_mm / 1000.0f;
         float width_m = 2.0f * avg_d_m * sinf(span_rad * 0.5f);
 
-        /* Gap must be wider than the robot plus safety margin.
-         * Do not relax this at long distance: a narrow far corridor will only
-         * become risky when the robot reaches it. */
         if (width_m < MIN_GAP_M)
             continue;
 
