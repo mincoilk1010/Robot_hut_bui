@@ -12,8 +12,8 @@
 #include "VL53L0X.h"
 #include "main.h"
 #include "types.h"
-#define SC_OBS_MM    500u   /* < 50cm: start wide scan early for planning */
-#define SC_CLEAR_MM  500u   /* > 50cm x 5 -> narrow mode */
+#define SC_OBS_MM    600u   /* < 60cm: start obstacle handling */
+#define SC_CLEAR_MM  600u   /* > 60cm x 5 -> narrow mode */
 #define SC_N_MIN      60u
 #define SC_N_MAX     120u
 #define SC_W_MIN       0u
@@ -77,6 +77,7 @@ extern TIM_HandleTypeDef htim3;
 extern u16 d;
 void    scanner_init(void);
 void    scanner_task(void);
+void    scanner_pause(u8 pause);
 u16     scanner_get(u8 deg);
 u16     scanner_front(void);
 u8      scanner_has_obs(void);

@@ -41,6 +41,7 @@ void Robot_Init(void)
     mpu6050_Calibrate();
 	HeadingHold_SetTarget(yaw);    
 	HeadingHold_Enable(1); 
+	HAL_Delay(1000);
 
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
     scanner_init();

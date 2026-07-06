@@ -181,6 +181,7 @@ int main(void)
   Robot_Init();
 
   //Debug_Print2();
+ // scanner_lock_angle(180);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -239,13 +240,14 @@ int main(void)
              state = 0u;
          }
      }
-*/
+
     // Control_Task20ms();
     // Debug_Print();
 
 
-
+*/
   }
+
 
   /* USER CODE END 3 */
 }

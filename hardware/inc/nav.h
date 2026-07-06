@@ -6,9 +6,9 @@
 
 #define NAV_SPEED              0.14f
 #define NAV_ROW_M              0.30f
-#define NAV_WALL_ROW_M         0.20f
+#define NAV_WALL_ROW_M         0.30f
 #define NAV_MAX_ROWS           10u
-#define NAV_OBS_LOOKAHEAD_MM   500u
+#define NAV_OBS_LOOKAHEAD_MM   600u
 #define NAV_OBS_DECIDE_MM      350u
 #define NAV_OBS_SLOW_MM        600u
 #define NAV_OBS_TURN_MM        180u
@@ -16,7 +16,7 @@
 #define NAV_ROW_LENGTH_M       2.80f
 #define NAV_ACCEL_MPS2         0.40f
 #define NAV_BOOT_DELAY_MS     300u
-#define NAV_STOP_SETTLE_MS     80u
+#define NAV_STOP_SETTLE_MS     50u // thoi gian dung truoc khi bat dau xoay
 #define NAV_BRAKE_MS           50u
 #define NAV_SCAN_TIMEOUT_MS    3500u
 #define NAV_SCAN_PARTIAL_MS     850u
@@ -50,18 +50,26 @@
 #define NAV_AVOID_PASS_MAX_M   1.30f
 #define NAV_OBJECT_MIN_WIDTH_M 0.08f
 #define NAV_OBJECT_MAX_WIDTH_M 0.80f
+#define NAV_OBJECT_CENTER_BIAS_DEG 5.0f
+/* Servo/scan convention: keep 1 if larger servo angle points left
+ * (0 = right, 90 = front, 180 = left).  Set 0 if your VL53 mount is reversed. */
+#define NAV_SCAN_LEFT_IS_HIGH_DEG 1u
 #define NAV_SIDE_LOOK_LEFT_DEG   180u
 #define NAV_SIDE_LOOK_RIGHT_DEG    0u
 #define NAV_SIDE_OBJECT_MM       700u
 #define NAV_SIDE_LOST_COUNT        4u
 #define NAV_AVOID_SIDE_MIN_M    0.35f
-#define NAV_AVOID_NO_SIDE_OFFSET_M 0.20f
-#define NAV_AFTER_OBJECT_CLEAR_M 0.35f
+#define NAV_AVOID_NO_SIDE_OFFSET_M NAV_ROBOT_LENGTH_M
+#define NAV_AFTER_OBJECT_CLEAR_M NAV_ROBOT_LENGTH_M
+#define NAV_AVOID_OFFSET_MIN_RUN_M 0.25f
+#define NAV_AVOID_PASS_MIN_RUN_M   0.35f
 #define NAV_AVOID_SIDE_HARD_MAX_M 1.20f
 #define NAV_PASS_FIND_OBJECT_M  0.45f
+#define NAV_PASS_HARD_MAX_M     2.50f
 #define NAV_REJOIN_ERR_M        0.025f
+#define NAV_REJOIN_CROSS_ERR_M  0.080f
 #define NAV_REJOIN_MIN_M        0.08f
-#define NAV_REJOIN_MAX_OVER_M   0.10f
+#define NAV_REJOIN_MAX_OVER_M   0.25f
 
 #define NAV_FOLLOW_TARGET_MM     250u
 #define NAV_FOLLOW_TARGET_TOL_MM  60u
@@ -103,6 +111,7 @@
 #define NAV_STUCK_BACK_SPEED      0.06f
 #define NAV_STUCK_BACK_TIMEOUT_MS 4500u
 #define NAV_ROW_CROSS_STUCK_GRACE_MS 1300u
+#define NAV_WALL_ROW_CROSS_TIMEOUT_MS 8000u
 #define NAV_BLOCKED_NEAR_MM       250u
 #define NAV_BLOCKED_NEAR_POINTS     8u
 #define NAV_BLOCKED_FRONT_POINTS    2u
@@ -112,11 +121,11 @@
 #define NAV_TURN_RETRY_MAX       1u
 #define NAV_TURN_ACCEPT_ERR_DEG  1.8f
 #define NAV_TURN_COARSE_ACCEPT_ERR_DEG 4.0f
-#define NAV_AVOID_TURN_ACCEPT_ERR_DEG 2.0f
+#define NAV_AVOID_TURN_ACCEPT_ERR_DEG 4.0f
 #define NAV_AVOID_TURN_FORCE_MS 3800u
 #define NAV_AVOID_TURN_FORCE_ERR_DEG 3.0f
 #define NAV_ROW_TURN_RETRY_MAX   3u
-#define NAV_ROW_TURN_ACCEPT_ERR_DEG 2.0f
+#define NAV_ROW_TURN_ACCEPT_ERR_DEG 6.0f
 #define NAV_ROW_TURN_FORCE_MS  4200u
 #define NAV_ROW_TURN_FORCE_ERR_DEG 3.0f
 

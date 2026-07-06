@@ -5,6 +5,7 @@
 Scanner_t sc = {0};
 Vl53MapCell_t vl53_map[SC_MAP_BINS] = {0};
 u16 d = 0;
+static u8 scanner_paused = 0u;
 
 static void _svo(u8 deg)
 {
@@ -92,6 +93,9 @@ static void _enter_wide(void)
 
 void scanner_request_wide(void)
 {
+    if (scanner_paused)
+        return;
+
     /* A cliff/end-of-row decision also needs a fresh 0..180 degree scan,
      * even when the front range sensor did not trigger wide mode itself. */
     if (sc.mode != SC_WIDE)
@@ -106,8 +110,27 @@ void scanner_wide_consume(void)
     _enter_narrow();
 }
 
+void scanner_pause(u8 pause)
+{
+    scanner_paused = pause ? 1u : 0u;
+
+    if (scanner_paused) {
+        sc.locked = 0u;
+        sc.lock_mm = 9999u;
+        sc.lock_stamp = 0u;
+        sc.wide_ready = 0u;
+        sc.wide_hold = 0u;
+        sc.front_mask = 0u;
+    } else {
+        sc.state = SC_MOVE;
+    }
+}
+
 void scanner_lock_angle(u8 deg)
 {
+    if (scanner_paused)
+        return;
+
     if (deg > 180u) deg = 180u;
     sc.locked = 1u;
     sc.lock_angle = deg;
@@ -129,6 +152,10 @@ void scanner_unlock(void)
     sc.locked = 0u;
     sc.lock_mm = 9999u;
     sc.lock_stamp = 0u;
+
+    if (scanner_paused)
+        return;
+
     _enter_narrow();
 
     if (sc.angle < sc.amin) {
@@ -147,6 +174,7 @@ void scanner_unlock(void)
 void scanner_init(void)
 {
     scanner_map_clear();
+    scanner_paused = 0u;
 
     for (int i = 0; i < 37; i++) {
         sc.data[i] = 9999u;
@@ -179,6 +207,9 @@ void scanner_init(void)
 void scanner_task(void)
 {
     uint32_t now = HAL_GetTick();
+
+    if (scanner_paused)
+        return;
 
     if (sc.locked) {
         switch (sc.state) {
