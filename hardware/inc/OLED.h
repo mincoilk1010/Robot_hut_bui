@@ -8,10 +8,12 @@
 
 // Cau hinh ty le hien thi
 #define MAX_RADAR_DIST_MM  1000u
-#define RADAR_RADIUS_PIXEL 60.0f
+#define RADAR_RADIUS_X_PIXEL ((float)(SSD1306_WIDTH / 2u - 5u))
+#define RADAR_RADIUS_Y_PIXEL ((float)(SSD1306_HEIGHT - 8u))
+#define OLED_RADAR_STEP_DEG 10u
 
-#define OLED_ORIGIN_X 64 // Tam xe nam o giua chieu ngang (128/2)
-#define OLED_ORIGIN_Y 63 // Tam xe nam o sat day man hinh (64-1)
+#define OLED_ORIGIN_X (SSD1306_WIDTH / 2u)
+#define OLED_ORIGIN_Y (SSD1306_HEIGHT - 1u)
 
 // Khai bao ham 
 void OLED_Init(void);

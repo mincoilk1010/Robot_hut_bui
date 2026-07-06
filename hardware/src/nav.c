@@ -30,6 +30,20 @@ typedef struct {
     u16 avg_mm;
 } FrontBlock_t;
 
+typedef struct {
+    u8 valid;
+    int valid_count;
+    int near_count;
+    int front_near_count;
+    int first_near_deg;
+    int last_near_deg;
+    int near_span_deg;
+    u16 min_mm;
+    u16 max_mm;
+    u16 spread_mm;
+    u16 avg_mm;
+} ScanShape_t;
+
 Nav_t nav = {
     .st = N_BOOT,
     .dir = 1,
@@ -58,7 +72,9 @@ static float avoid_resume_x0 = 0.0f;
 static float avoid_resume_y0 = 0.0f;
 static i8 avoid_side = 1;
 static float avoid_offset_m = NAV_AVOID_OFFSET_M;
+static float avoid_actual_offset_m = NAV_AVOID_OFFSET_M;
 static float avoid_pass_m = NAV_AVOID_PASS_M;
+static u8 avoid_offset_phase = 0u;
 static u8 avoid_pass_phase = 0u;
 static u8 avoid_side_seen = 0u;
 static u8 avoid_side_lost_count = 0u;
@@ -88,6 +104,12 @@ static float norm_deg(float a)
     while (a > 180.0f) a -= 360.0f;
     while (a <= -180.0f) a += 360.0f;
     return a;
+}
+
+static float yaw_delta_for_side(i8 side, float deg)
+{
+    i8 s = (side >= 0) ? 1 : -1;
+    return NAV_YAW_LEFT_SIGN * (float)s * deg;
 }
 
 static float cross_error_for(float lane_yaw, float x0, float y0)
@@ -180,10 +202,8 @@ static float planned_distance_done(void)
 
 static u8 object_side_servo_deg(void)
 {
-    /* If robot avoids to the left of the object, the object is on its right
-     * while driving parallel to the old line.  If it avoids to the right, the
-     * object is on its left.  Servo convention in this project:
-     * small angle = right, large angle = left.
+    /* avoid_side > 0: robot turns left, object is on robot right side.
+     * avoid_side < 0: robot turns right, object is on robot left side.
      */
     return (avoid_side > 0) ? NAV_SIDE_LOOK_RIGHT_DEG
                             : NAV_SIDE_LOOK_LEFT_DEG;
@@ -256,11 +276,13 @@ static void enter_state(NavSt_t state)
           pending_after_turn == N_AVOID_REJOIN)) ? 1u : 0u;
 
     if ((state == N_TURN_WAIT && !avoid_turn) || state == N_ROW_CROSS ||
-        state == N_STUCK_BACK || state == N_DONE) {
+        state == N_AVOID_REJOIN || state == N_STUCK_BACK ||
+        state == N_DONE) {
         scanner_unlock();
     }
 
     if (state == N_AVOID_OFFSET) {
+        avoid_offset_phase = 0u;
         avoid_side_seen = 0u;
         avoid_side_lost_count = 0u;
         scanner_lock_angle(object_side_servo_deg());
@@ -372,9 +394,7 @@ static u8 stuck_detected(u32 now, float cmd_speed)
 
 static u8 wide_scan_usable(void)
 {
-    return (scanner_wide_ready() ||
-            (scanner_mode() == SC_WIDE &&
-             sc.wide_valid_count >= NAV_SCAN_MIN_VALID_POINTS)) ? 1u : 0u;
+    return scanner_wide_ready();
 }
 
 static i8 side_from_gap(const Gap_t *gap)
@@ -697,6 +717,73 @@ static FrontBlock_t front_near_block(u16 near_limit_mm)
     return best;
 }
 
+static ScanShape_t scan_shape_stats(void)
+{
+    ScanShape_t s = {0};
+    u32 sum = 0u;
+
+    s.min_mm = 65535u;
+    s.max_mm = 0u;
+    s.first_near_deg = -1;
+    s.last_near_deg = -1;
+
+    for (u8 deg = NAV_SHAPE_SCAN_MIN_DEG;
+         deg <= NAV_SHAPE_SCAN_MAX_DEG;
+         deg += SC_STEP) {
+        u16 mm = scanner_get(deg);
+
+        /* 9999/0/no-return is unknown, not far wall. Do not let it inflate
+         * max-min spread, otherwise every real wall becomes "object". */
+        if (mm == 0u || mm == 9999u || mm > NAV_SHAPE_VALID_MAX_MM)
+            continue;
+
+        s.valid_count++;
+        sum += mm;
+
+        if (mm < s.min_mm)
+            s.min_mm = mm;
+        if (mm > s.max_mm)
+            s.max_mm = mm;
+
+        if (mm <= NAV_SHAPE_NEAR_MM) {
+            s.near_count++;
+            if (deg >= 70u && deg <= 110u)
+                s.front_near_count++;
+
+            if (s.first_near_deg < 0)
+                s.first_near_deg = deg;
+            s.last_near_deg = deg;
+        }
+    }
+
+    if (s.valid_count == 0)
+        return s;
+
+    s.valid = 1u;
+    s.avg_mm = (u16)(sum / (u32)s.valid_count);
+    s.spread_mm = (s.max_mm >= s.min_mm) ? (u16)(s.max_mm - s.min_mm) : 0u;
+    if (s.first_near_deg >= 0 && s.last_near_deg >= s.first_near_deg)
+        s.near_span_deg = s.last_near_deg - s.first_near_deg;
+
+    return s;
+}
+
+static u8 wall_shape_confident(const ScanShape_t *s)
+{
+    if (!s->valid || s->valid_count < (int)NAV_SHAPE_MIN_VALID_POINTS)
+        return 0u;
+
+    return (s->spread_mm <= NAV_SHAPE_WALL_SPREAD_MAX_MM) ? 1u : 0u;
+}
+
+static u8 object_shape_likely(const ScanShape_t *s)
+{
+    if (!s->valid || s->valid_count < (int)NAV_SHAPE_MIN_VALID_POINTS)
+        return 0u;
+
+    return (s->spread_mm > NAV_SHAPE_WALL_SPREAD_MAX_MM) ? 1u : 0u;
+}
+
 static u8 wall_scan_confident(void)
 {
     u16 near_limit_mm =
@@ -728,8 +815,15 @@ static u8 wall_scan_confident(void)
 static Scene_t classify_scene(Gap_t *gap_out, i8 *side_out)
 {
     Gap_t gap = {0};
+    ScanShape_t shape = scan_shape_stats();
     u8 has_gap = Avoid_FindBestGap(&gap);
-    u8 wall = wall_scan_confident();
+    u8 shape_ready =
+        (shape.valid &&
+         shape.valid_count >= (int)NAV_SHAPE_MIN_VALID_POINTS) ? 1u : 0u;
+    u8 wall_block = wall_scan_confident();
+    u8 wall = shape_ready ? (u8)(wall_shape_confident(&shape) || wall_block)
+                          : wall_block;
+    u8 object_like = object_shape_likely(&shape);
 
     if (gap_out)
         *gap_out = gap;
@@ -739,7 +833,7 @@ static Scene_t classify_scene(Gap_t *gap_out, i8 *side_out)
         return SCENE_WALL;
     }
 
-    if (has_gap) {
+    if ((shape_ready && object_like) || has_gap) {
         if (side_out) *side_out = choose_object_escape_side(&gap);
         return SCENE_OBJECT;
     }
@@ -765,23 +859,6 @@ static void schedule_turn_to(float yaw_target, NavSt_t after_turn)
 static void schedule_row_turn_to(float yaw_target, NavSt_t after_turn)
 {
     schedule_turn_to_ex(yaw_target, after_turn, 1u);
-}
-
-static u8 turn_can_continue(float err_deg)
-{
-    if (err_deg <= NAV_TURN_ACCEPT_ERR_DEG)
-        return 1u;
-
-    if (pending_turn_is_row && err_deg <= NAV_ROW_TURN_ACCEPT_ERR_DEG)
-        return 1u;
-
-    if ((pending_after_turn == N_AVOID_OFFSET ||
-         pending_after_turn == N_AVOID_PASS ||
-         pending_after_turn == N_AVOID_REJOIN) &&
-        err_deg <= NAV_AVOID_TURN_ACCEPT_ERR_DEG)
-        return 1u;
-
-    return 0u;
 }
 
 static void begin_scan(void)
@@ -831,6 +908,7 @@ static void begin_wall_row_change(i8 side)
      * the next scene and must not interrupt this wall maneuver.
      */
     clear_obstacle_plan();
+    scanner_unlock();
     if (scanner_mode() == SC_WIDE)
         scanner_wide_consume();
 
@@ -839,7 +917,8 @@ static void begin_wall_row_change(i8 side)
     row_shift_target_m = NAV_WALL_ROW_M;
 
     schedule_row_turn_to(nav.lane_yaw +
-                         (float)row_shift_side * NAV_AVOID_ANGLE_DEG,
+                         yaw_delta_for_side(row_shift_side,
+                                            NAV_AVOID_ANGLE_DEG),
                          N_ROW_CROSS);
 }
 
@@ -856,16 +935,19 @@ static void begin_object_avoid(i8 side)
     avoid_resume_y0 = nav.y0;
     avoid_side = (side >= 0) ? 1 : -1;
 
-    /* Lock the VL53 toward the object before the 90-degree avoid turn starts.
-     * Example: if the robot turns left, the object will be on the robot's
-     * right side after the turn, so servo = 0 deg must already point there.
+    /* Side-follow object avoidance:
+     * turn 90 deg, lock the VL53 toward the object side, then use side
+     * detection to decide whether to follow the object's edge or fall back to
+     * a fixed encoder distance.  This keeps the robot moving even when the
+     * side measurement is missing.
      */
     avoid_side_seen = 0u;
     avoid_side_lost_count = 0u;
     scanner_lock_angle(object_side_servo_deg());
 
     schedule_turn_to(avoid_resume_yaw +
-                     (float)avoid_side * NAV_AVOID_ANGLE_DEG,
+                     yaw_delta_for_side(avoid_side,
+                                        NAV_AVOID_ANGLE_DEG),
                      N_AVOID_OFFSET);
 }
 
@@ -921,13 +1003,36 @@ static void plan_from_scan(void)
     scanner_wide_consume();
 }
 
-static void execute_planned_or_object_fallback(void);
-
-static void handle_scan_result(void)
+static void fallback_object_plan_from_partial_scan(void)
 {
-    plan_from_scan();
-    execute_planned_or_object_fallback();
+    Gap_t gap = {0};
+    i8 side = nav.dir;
+
+    if (Avoid_FindBestGap(&gap)) {
+        side = choose_object_escape_side(&gap);
+    } else {
+        side = choose_open_side();
+    }
+
+    planned_scene = SCENE_OBJECT;
+    planned_side = side;
+    planned_ready = 1u;
+
+    ObjectMeasure_t obj = estimate_object_from_scan();
+    if (obj.found) {
+        set_planned_avoid_from_width(obj.width_m);
+    } else {
+        /* Conservative default for a small/medium box when the scan did not
+         * produce a clean object segment.  This prevents the robot from
+         * waiting forever in front of an obstacle. */
+        set_planned_avoid_from_width(0.35f);
+    }
+
+    if (scanner_mode() == SC_WIDE)
+        scanner_wide_consume();
 }
+
+static void execute_planned_or_object_fallback(void);
 
 static void execute_planned_or_object_fallback(void)
 {
@@ -1017,10 +1122,16 @@ void nav_task(void)
             break;
 
         if (scan_for_plan) {
-            if (scanner_wide_ready() ||
-                (u32)(now - nav.t0) >= NAV_SCAN_TIMEOUT_MS) {
+            u8 timed_out =
+                ((u32)(now - nav.t0) >= NAV_SCAN_TIMEOUT_MS) ? 1u : 0u;
+
+            if (scanner_wide_ready() || timed_out) {
                 scan_for_plan = 0u;
-                plan_from_scan();
+
+                if (scanner_wide_ready())
+                    plan_from_scan();
+                else
+                    fallback_object_plan_from_partial_scan();
 
                 if (front_hold_mm <= NAV_OBS_TURN_MM) {
                     execute_planned_or_object_fallback();
@@ -1029,12 +1140,14 @@ void nav_task(void)
                 }
             }
         } else {
-            if (wide_scan_usable() ||
-                (u32)(now - nav.t0) >= NAV_SCAN_TIMEOUT_MS ||
-                (scanner_mode() == SC_WIDE &&
-                 sc.wide_valid_count >= 6u &&
-                 (u32)(now - nav.t0) >= 300u)) {
-                handle_scan_result();
+            u8 timed_out =
+                ((u32)(now - nav.t0) >= NAV_SCAN_TIMEOUT_MS) ? 1u : 0u;
+            if (wide_scan_usable() || timed_out) {
+                if (timed_out && !wide_scan_usable())
+                    fallback_object_plan_from_partial_scan();
+                else
+                    plan_from_scan();
+                execute_planned_or_object_fallback();
             }
         }
         break;
@@ -1062,7 +1175,6 @@ void nav_task(void)
              err <= NAV_AVOID_TURN_FORCE_ERR_DEG) ? 1u : 0u;
 
         if ((turn_done() && !turn.timeout) ||
-            turn_can_continue(err) ||
             force_row ||
             force_avoid) {
             stop_motion();
@@ -1097,23 +1209,61 @@ void nav_task(void)
              (u32)(now - nav.t0) < NAV_AVOID_FRONT_IGNORE_MS) ? 1u : 0u;
         u8 side_seen_now = side_sensor_sees_object();
 
-        if (side_seen_now) {
-            avoid_side_seen = 1u;
-            avoid_side_lost_count = 0u;
-        } else if (avoid_side_seen && avoid_side_lost_count < 255u) {
-            avoid_side_lost_count++;
-        }
-
-        float offset_target =
-            avoid_side_seen
-                ? ((avoid_offset_m > NAV_AVOID_SIDE_MIN_M)
-                       ? avoid_offset_m
-                       : NAV_AVOID_SIDE_MIN_M)
-                : NAV_AVOID_NO_SIDE_OFFSET_M;
-
         drive_heading(NAV_AVOID_SPEED);
 
-        if (travelled >= offset_target) {
+        if (avoid_offset_phase == 0u) {
+            if (side_seen_now) {
+                avoid_side_seen = 1u;
+                avoid_side_lost_count = 0u;
+            } else if (avoid_side_seen && avoid_side_lost_count < 255u) {
+                avoid_side_lost_count++;
+            }
+
+            /* Servo never saw the object after the first 90 deg turn:
+             * still move a small safe offset, then continue the normal pass.
+             */
+            if (!avoid_side_seen && travelled >= NAV_AVOID_NO_SIDE_OFFSET_M) {
+                avoid_actual_offset_m = travelled;
+                schedule_turn_to(avoid_resume_yaw, N_AVOID_PASS);
+                break;
+            }
+
+            /* Object is on the side: keep driving in the open direction until
+             * the side VL53 stops seeing it.  Only then add one robot-length
+             * clearance before turning back to the old heading.
+             */
+            if (avoid_side_seen &&
+                avoid_side_lost_count >= NAV_SIDE_LOST_COUNT) {
+                avoid_actual_offset_m = travelled;
+                avoid_offset_phase = 1u;
+                mark_position();
+                break;
+            }
+
+            if (avoid_side_seen &&
+                travelled >= (avoid_offset_m + NAV_AFTER_OBJECT_CLEAR_M)) {
+                avoid_actual_offset_m = travelled;
+                schedule_turn_to(avoid_resume_yaw, N_AVOID_PASS);
+                break;
+            }
+
+            /* Safety cap: if this object behaves like a very wide obstacle,
+             * do not sit in this state forever.
+             */
+            if (travelled >= NAV_AVOID_SIDE_HARD_MAX_M) {
+                avoid_actual_offset_m = travelled;
+                schedule_turn_to(avoid_resume_yaw, N_AVOID_PASS);
+                break;
+            }
+
+            if (!ignore_front && stuck_detected(now, g_sp_v)) {
+                begin_stuck_back();
+            }
+            break;
+        }
+
+        if (travelled >= NAV_AFTER_OBJECT_CLEAR_M) {
+            avoid_actual_offset_m += travelled;
             schedule_turn_to(avoid_resume_yaw, N_AVOID_PASS);
         } else if (!ignore_front && stuck_detected(now, g_sp_v)) {
             begin_stuck_back();
@@ -1124,6 +1274,10 @@ void nav_task(void)
     case N_AVOID_PASS: {
         float travelled = distance_from_mark();
         u8 side_seen_now = side_sensor_sees_object();
+        float pass_target =
+            limit(avoid_pass_m,
+                  NAV_AVOID_PASS_MIN_M,
+                  NAV_AVOID_PASS_MAX_M);
 
         drive_heading(NAV_AVOID_SPEED);
 
@@ -1136,16 +1290,28 @@ void nav_task(void)
                     avoid_side_lost_count++;
             }
 
-            if (!avoid_side_seen && travelled >= NAV_PASS_NO_OBJECT_M) {
-                schedule_turn_to(avoid_resume_yaw -
-                                 (float)avoid_side * NAV_AVOID_ANGLE_DEG,
-                                 N_AVOID_REJOIN);
+            /* At the beginning of the pass, the side VL53 may not see the
+             * object yet.  Keep driving forward until it sees the object,
+             * then keep driving while it still sees it.  Only after the object
+             * has been seen once and then lost do we add robot-length
+             * clearance and return to the old line.  pass_target is a safety
+             * cap for missed/noisy side readings.
+             */
+            if (avoid_side_seen &&
+                avoid_side_lost_count >= NAV_SIDE_LOST_COUNT) {
+                avoid_pass_phase = 1u;
+                mark_position();
                 break;
             }
 
-            if ((avoid_side_seen &&
-                 avoid_side_lost_count >= NAV_SIDE_LOST_COUNT) ||
-                travelled >= avoid_pass_m) {
+            if (!avoid_side_seen &&
+                travelled >= NAV_PASS_FIND_OBJECT_M) {
+                avoid_pass_phase = 1u;
+                mark_position();
+                break;
+            }
+
+            if (travelled >= pass_target) {
                 avoid_pass_phase = 1u;
                 mark_position();
                 break;
@@ -1160,7 +1326,8 @@ void nav_task(void)
 
         if (distance_from_mark() >= NAV_AFTER_OBJECT_CLEAR_M) {
             schedule_turn_to(avoid_resume_yaw -
-                             (float)avoid_side * NAV_AVOID_ANGLE_DEG,
+                             yaw_delta_for_side(avoid_side,
+                                                NAV_AVOID_ANGLE_DEG),
                              N_AVOID_REJOIN);
         } else if (stuck_detected(now, g_sp_v)) {
             begin_stuck_back();
@@ -1174,18 +1341,26 @@ void nav_task(void)
                                   avoid_resume_y0);
         float travelled = distance_from_mark();
         u8 near_lane = (fabsf(e) <= NAV_AVOID_REJOIN_LEAD_M);
+        u8 tight_lane = (fabsf(e) <= NAV_REJOIN_ERR_M);
         u8 crossed_lane =
             (fabsf(rejoin_start_error) > NAV_AVOID_REJOIN_LEAD_M &&
              (rejoin_start_error * e) <= 0.0f);
+        float max_rejoin_m = avoid_actual_offset_m + NAV_REJOIN_MAX_OVER_M;
 
-        drive_heading(NAV_SPEED * 0.55f);
+        drive_heading(NAV_SPEED * 0.45f);
 
-        if (travelled >= avoid_offset_m ||
-            (travelled >= (avoid_offset_m * 0.75f) &&
-             (near_lane || crossed_lane))) {
+        if (travelled >= NAV_REJOIN_MIN_M &&
+            (tight_lane || near_lane || crossed_lane)) {
             mission_set_line(avoid_resume_yaw,
                              avoid_resume_x0,
                              avoid_resume_y0);
+            schedule_turn_to(nav.lane_yaw, N_FWD);
+        } else if (travelled >= max_rejoin_m) {
+            /* Encoder/gyro odometry can drift.  If the old line is not
+             * detected after a small overrun, do not keep driving sideways
+             * and miss by a large distance.  Continue on a parallel line from
+             * the current pose instead of accumulating a 1m lateral error. */
+            mission_set_line(avoid_resume_yaw, pose.x, pose.y);
             schedule_turn_to(nav.lane_yaw, N_FWD);
         } else if (stuck_detected(now, g_sp_v)) {
             begin_stuck_back();

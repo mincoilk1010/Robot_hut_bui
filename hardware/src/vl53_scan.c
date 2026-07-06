@@ -3,6 +3,7 @@
 #include <math.h>
 
 Scanner_t sc = {0};
+Vl53MapCell_t vl53_map[SC_MAP_BINS] = {0};
 u16 d = 0;
 
 static void _svo(u8 deg)
@@ -10,6 +11,47 @@ static void _svo(u8 deg)
     if (deg > 180u) deg = 180u;
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1,
                           500u + (u32)deg * 2000u / 180u);
+}
+
+void scanner_map_clear(void)
+{
+    for (u8 i = 0u; i < SC_MAP_BINS; i++) {
+        vl53_map[i].raw_mm = 9999u;
+        vl53_map[i].filt_mm = 9999u;
+        vl53_map[i].stamp = 0u;
+        vl53_map[i].valid = 0u;
+        vl53_map[i].conf = 0u;
+    }
+}
+
+static void scanner_map_update(u8 deg, u16 mm)
+{
+    u8 idx = deg / SC_STEP;
+    if (idx >= SC_MAP_BINS)
+        return;
+
+    if (mm != 0u && mm != 9999u) {
+        vl53_map[idx].raw_mm = mm;
+
+        if (!vl53_map[idx].valid || vl53_map[idx].filt_mm == 9999u) {
+            vl53_map[idx].filt_mm = mm;
+        } else {
+            vl53_map[idx].filt_mm =
+                (u16)(((u32)vl53_map[idx].filt_mm * 7u +
+                       (u32)mm * 3u) / 10u);
+        }
+
+        vl53_map[idx].stamp = HAL_GetTick();
+        vl53_map[idx].valid = 1u;
+        if (vl53_map[idx].conf < SC_MAP_CONF_MAX)
+            vl53_map[idx].conf++;
+    } else {
+        vl53_map[idx].raw_mm = 9999u;
+        if (vl53_map[idx].conf > 0u)
+            vl53_map[idx].conf--;
+        if (vl53_map[idx].conf == 0u)
+            vl53_map[idx].valid = 0u;
+    }
 }
 
 /* ★FIX: không còn reset sc.angle — chỉ đổi vùng quét (amin/amax).
@@ -88,11 +130,24 @@ void scanner_unlock(void)
     sc.lock_mm = 9999u;
     sc.lock_stamp = 0u;
     _enter_narrow();
+
+    if (sc.angle < sc.amin) {
+        sc.angle = sc.amin;
+        sc.dir = 1;
+    } else if (sc.angle > sc.amax) {
+        sc.angle = sc.amax;
+        sc.dir = -1;
+    }
+
+    _svo(sc.angle);
+    sc.t_servo = HAL_GetTick();
     sc.state = SC_MOVE;
 }
 
 void scanner_init(void)
 {
+    scanner_map_clear();
+
     for (int i = 0; i < 37; i++) {
         sc.data[i] = 9999u;
         sc.stamp[i] = 0u;
@@ -143,6 +198,7 @@ void scanner_task(void)
         case SC_READ:
             d = (uint16_t)readRangeContinuousMillimeters(0);
             if (d == 0 || d > 2000u) d = 9999u;
+            scanner_map_update(sc.lock_angle, d);
             sc.lock_mm = d;
             sc.lock_stamp = now;
             sc.lock_seq++;
@@ -171,14 +227,16 @@ void scanner_task(void)
     case SC_READ: {
         d = (uint16_t)readRangeContinuousMillimeters(0);
         if (d == 0 || d > 2000u) d = 9999u;
+        scanner_map_update(sc.angle, d);
 
         /* ── Chuyển NARROW→WIDE khi gặp vật gần ── chỉ đổi vùng quét,
          * KHÔNG đổi sc.angle/sc.dir → servo không bị giật.          */
-        if (sc.mode == SC_NARROW && d < SC_OBS_MM) {
-            _enter_wide();
-        }
+        /* nav_task() owns wide-scan decisions.  If the scanner enters WIDE
+         * by itself while the robot is doing a wall row-change, the servo can
+         * swing back to the side wall and the nav state can be confused.
+         */
 
-        /* Save after _enter_wide(): that transition clears old scan data. */
+        /* Save the latest sample for the current scan mode. */
         u8 idx = sc.angle / SC_STEP;
         if (idx < 37u) {
             sc.data[idx] = d;
@@ -257,6 +315,28 @@ u16 scanner_get(u8 deg)
     if ((u32)(HAL_GetTick() - sc.stamp[i]) > SC_SAMPLE_MAX_AGE_MS) return 9999u;
     return sc.data[i];
 }
+
+u16 scanner_map_get(u8 deg)
+{
+    u8 i = deg / SC_STEP;
+    if (i >= SC_MAP_BINS || !vl53_map[i].valid || vl53_map[i].stamp == 0u)
+        return 9999u;
+    if ((u32)(HAL_GetTick() - vl53_map[i].stamp) > SC_MAP_MAX_AGE_MS)
+        return 9999u;
+    return vl53_map[i].filt_mm;
+}
+
+u8 scanner_map_conf(u8 deg)
+{
+    u8 i = deg / SC_STEP;
+    if (i >= SC_MAP_BINS)
+        return 0u;
+    if (vl53_map[i].stamp == 0u ||
+        (u32)(HAL_GetTick() - vl53_map[i].stamp) > SC_MAP_MAX_AGE_MS)
+        return 0u;
+    return vl53_map[i].conf;
+}
+
 u16 scanner_front(void) {
 	u32 max_age = (sc.mode == SC_WIDE) ? SC_FRONT_WIDE_MAX_AGE_MS
 	                                    : SC_FRONT_NARROW_MAX_AGE_MS;

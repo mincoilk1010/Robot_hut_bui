@@ -6,20 +6,22 @@
 
 #define NAV_SPEED              0.14f
 #define NAV_ROW_M              0.30f
-#define NAV_WALL_ROW_M         0.30f
+#define NAV_WALL_ROW_M         0.20f
 #define NAV_MAX_ROWS           10u
-#define NAV_OBS_LOOKAHEAD_MM   600u
+#define NAV_OBS_LOOKAHEAD_MM   500u
 #define NAV_OBS_DECIDE_MM      350u
 #define NAV_OBS_SLOW_MM        600u
-#define NAV_OBS_TURN_MM        150u
+#define NAV_OBS_TURN_MM        180u
 #define NAV_OBS_CONTACT_MM     160u
 #define NAV_ROW_LENGTH_M       2.80f
 #define NAV_ACCEL_MPS2         0.40f
 #define NAV_BOOT_DELAY_MS     300u
 #define NAV_STOP_SETTLE_MS     80u
 #define NAV_BRAKE_MS           50u
-#define NAV_SCAN_TIMEOUT_MS    2400u
-#define NAV_SCAN_MIN_VALID_POINTS 10u
+#define NAV_SCAN_TIMEOUT_MS    3500u
+#define NAV_SCAN_PARTIAL_MS     850u
+#define NAV_SCAN_PARTIAL_POINTS 18u
+#define NAV_SCAN_MIN_VALID_POINTS 16u
 #define NAV_LOOKAHEAD_RESCAN_MS 500u
 #define NAV_CLASS_CONFIRM_COUNT  1u
 
@@ -28,6 +30,9 @@
 #define NAV_XTRACK_DEADBAND_M  0.015f
 
 #define NAV_AVOID_ANGLE_DEG    90.0f
+/* Keep 1.0f if positive yaw/turn_start(+90) turns the robot left.
+ * Set to -1.0f if turn_start(+90) turns the robot right. */
+#define NAV_YAW_LEFT_SIGN       1.0f
 #define NAV_AVOID_MIN_ANGLE_DEG 45.0f
 #define NAV_AVOID_SPEED        0.12f
 #define NAV_AVOID_OFFSET_M     0.40f
@@ -37,11 +42,11 @@
 #define NAV_AVOID_FRONT_IGNORE_M 0.22f
 #define NAV_AVOID_FRONT_IGNORE_MS 1000u
 #define NAV_ROBOT_LENGTH_M     0.35f
-#define NAV_AVOID_SIDE_SAFE_M  0.08f
-#define NAV_AVOID_PASS_SAFE_M  0.15f
-#define NAV_AVOID_OFFSET_MIN_M 0.35f
+#define NAV_AVOID_SIDE_SAFE_M  0.10f
+#define NAV_AVOID_PASS_SAFE_M  0.20f
+#define NAV_AVOID_OFFSET_MIN_M 0.40f
 #define NAV_AVOID_OFFSET_MAX_M 0.65f
-#define NAV_AVOID_PASS_MIN_M   0.75f
+#define NAV_AVOID_PASS_MIN_M   0.85f
 #define NAV_AVOID_PASS_MAX_M   1.30f
 #define NAV_OBJECT_MIN_WIDTH_M 0.08f
 #define NAV_OBJECT_MAX_WIDTH_M 0.80f
@@ -50,9 +55,13 @@
 #define NAV_SIDE_OBJECT_MM       700u
 #define NAV_SIDE_LOST_COUNT        4u
 #define NAV_AVOID_SIDE_MIN_M    0.35f
-#define NAV_PASS_NO_OBJECT_M    0.35f
-#define NAV_AFTER_OBJECT_CLEAR_M 0.35f
 #define NAV_AVOID_NO_SIDE_OFFSET_M 0.20f
+#define NAV_AFTER_OBJECT_CLEAR_M 0.35f
+#define NAV_AVOID_SIDE_HARD_MAX_M 1.20f
+#define NAV_PASS_FIND_OBJECT_M  0.45f
+#define NAV_REJOIN_ERR_M        0.025f
+#define NAV_REJOIN_MIN_M        0.08f
+#define NAV_REJOIN_MAX_OVER_M   0.10f
 
 #define NAV_FOLLOW_TARGET_MM     250u
 #define NAV_FOLLOW_TARGET_TOL_MM  60u
@@ -67,6 +76,12 @@
 #define NAV_FOLLOW_FILTER_ALPHA 0.35f
 
 #define NAV_SCAN_SEGMENT_JUMP_MM 200.0f
+#define NAV_SHAPE_SCAN_MIN_DEG    15u
+#define NAV_SHAPE_SCAN_MAX_DEG   165u
+#define NAV_SHAPE_VALID_MAX_MM  1500u
+#define NAV_SHAPE_NEAR_MM        700u
+#define NAV_SHAPE_MIN_VALID_POINTS 12u
+#define NAV_SHAPE_WALL_SPREAD_MAX_MM 1200u
 #define NAV_WALL_MIN_POINTS       8u
 #define NAV_WALL_NEAR_EXTRA_MM  120u
 #define NAV_WALL_BROAD_SPAN_DEG  70u
@@ -95,15 +110,15 @@
 #define NAV_SEARCH_MAX_STEPS         4u
 
 #define NAV_TURN_RETRY_MAX       1u
-#define NAV_TURN_ACCEPT_ERR_DEG  4.0f
-#define NAV_TURN_COARSE_ACCEPT_ERR_DEG 8.0f
-#define NAV_AVOID_TURN_ACCEPT_ERR_DEG 6.0f
-#define NAV_AVOID_TURN_FORCE_MS 2200u
-#define NAV_AVOID_TURN_FORCE_ERR_DEG 12.0f
+#define NAV_TURN_ACCEPT_ERR_DEG  1.8f
+#define NAV_TURN_COARSE_ACCEPT_ERR_DEG 4.0f
+#define NAV_AVOID_TURN_ACCEPT_ERR_DEG 2.0f
+#define NAV_AVOID_TURN_FORCE_MS 3800u
+#define NAV_AVOID_TURN_FORCE_ERR_DEG 3.0f
 #define NAV_ROW_TURN_RETRY_MAX   3u
-#define NAV_ROW_TURN_ACCEPT_ERR_DEG 4.0f
-#define NAV_ROW_TURN_FORCE_MS  2600u
-#define NAV_ROW_TURN_FORCE_ERR_DEG 7.0f
+#define NAV_ROW_TURN_ACCEPT_ERR_DEG 2.0f
+#define NAV_ROW_TURN_FORCE_MS  4200u
+#define NAV_ROW_TURN_FORCE_ERR_DEG 3.0f
 
 typedef enum {
     N_BOOT = 0,

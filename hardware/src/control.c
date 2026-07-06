@@ -17,8 +17,8 @@ static float heading_err_old = 0.0f;
 static volatile u8 heading_hold_enabled = 1u;
 static volatile float heading_w_trim = 0.0f;
 
-#define TURN_TIMEOUT_MS     3500u
-#define TURN_SETTLE_MS      50u
+#define TURN_TIMEOUT_MS     5500u
+#define TURN_SETTLE_MS      120u
 #define HH_DEADBAND_DEG     0.45f
 #define HH_KP_MIN           0.020f
 #define HH_KP_SPEED         0.012f

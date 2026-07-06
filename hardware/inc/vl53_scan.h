@@ -12,10 +12,10 @@
 #include "VL53L0X.h"
 #include "main.h"
 #include "types.h"
-#define SC_OBS_MM    600u   /* < 60cm: start wide scan early for planning */
-#define SC_CLEAR_MM  600u   /* > 60cm × 5 → narrow mode */
-#define SC_N_MIN      50u
-#define SC_N_MAX     130u
+#define SC_OBS_MM    500u   /* < 50cm: start wide scan early for planning */
+#define SC_CLEAR_MM  500u   /* > 50cm x 5 -> narrow mode */
+#define SC_N_MIN      60u
+#define SC_N_MAX     120u
 #define SC_W_MIN       0u
 #define SC_W_MAX     180u
 #define SC_STEP        5u
@@ -24,6 +24,9 @@
 #define SC_FRONT_NARROW_MAX_AGE_MS  700u
 #define SC_FRONT_WIDE_MAX_AGE_MS   1200u
 #define SC_LOCK_MAX_AGE_MS          200u
+#define SC_MAP_BINS                 ((SC_W_MAX - SC_W_MIN) / SC_STEP + 1u)
+#define SC_MAP_MAX_AGE_MS           1200u
+#define SC_MAP_CONF_MAX             10u
 
 typedef enum{
     SC_IDLE,
@@ -58,7 +61,17 @@ typedef struct{
     u8 done; u32 cycle;
     u8 clear_cnt;
 } Scanner_t;
+
+typedef struct {
+    u16 raw_mm;       /* Last raw sample at this angle */
+    u16 filt_mm;      /* Filtered sample for display */
+    u32 stamp;        /* Last good-sample time */
+    u8 valid;         /* 1 = usable for display */
+    u8 conf;          /* confidence 0..SC_MAP_CONF_MAX */
+} Vl53MapCell_t;
+
 extern Scanner_t sc;
+extern Vl53MapCell_t vl53_map[SC_MAP_BINS];
 
 extern TIM_HandleTypeDef htim3;
 extern u16 d;
@@ -76,4 +89,7 @@ void scanner_lock_angle(u8 deg);
 void scanner_unlock(void);
 u16 scanner_locked_mm(void);
 u32 scanner_locked_seq(void);
+void scanner_map_clear(void);
+u16 scanner_map_get(u8 deg);
+u8 scanner_map_conf(u8 deg);
 #endif /* INC_VL53_SCAN_H_ */

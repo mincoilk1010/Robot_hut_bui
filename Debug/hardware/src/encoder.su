@@ -1,3 +1,2 @@
-../hardware/src/encoder.c:24:13:encoder_pulse_update	32	static
-../hardware/src/encoder.c:75:6:HAL_TIM_IC_CaptureCallback	32	static
-../hardware/src/encoder.c:93:6:encoder_init	8	static
+../hardware/src/encoder.c:16:6:HAL_TIM_IC_CaptureCallback	40	static
+../hardware/src/encoder.c:94:6:encoder_init	8	static

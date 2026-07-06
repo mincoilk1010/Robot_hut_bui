@@ -193,7 +193,9 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 	  Robot_Loop();
-	   //Debug_Print();
+
+
+	  //Debug_Print1();
 	  /*
      static u8 side = 0u;
      static u8 straight_lock = 0u;
@@ -237,14 +239,9 @@ int main(void)
              state = 0u;
          }
      }
-
-     Control_Task20ms();
-     Debug_Print();
-     */
-    
-
-
-
+*/
+    // Control_Task20ms();
+    // Debug_Print();
 
 
 

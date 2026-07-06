@@ -70,12 +70,12 @@ void Kinematics_inverse(float v, float w, float *vL_out, float *vR_out);
 void Kinematics_obs_pos(float dist_m, float servo_deg, float *obs_x, float *obs_y);
 void Kinematics_reset(void);
 
-#define TR_KP         0.055f
-#define TR_KD         0.006f
-#define TR_W_MAX      2.00f
-#define TR_W_MIN      0.12f
+#define TR_KP         0.065f
+#define TR_KD         0.005f
+#define TR_W_MAX      2.20f
+#define TR_W_MIN      0.16f
 #define TR_SLOW_DEG   18.0f
-#define TR_DONE_DEG   2.0f
+#define TR_DONE_DEG   1.2f
 
 typedef enum
 {
