@@ -460,8 +460,35 @@ static i8 side_from_gap(const Gap_t *gap)
     return nav.dir;
 }
 
+static float escape_side_score(u8 deg_min, u8 deg_max);
+
+static i8 side_from_open_score(void)
+{
+    /* Servo/scan convention:
+     * - deg > 90: ben trai robot
+     * - deg < 90: ben phai robot
+     *
+     * Score cao hon nghia la ben do xa vat hon / nhieu tia thoang hon.
+     */
+    float left_score = escape_side_score(100u, 165u);
+    float right_score = escape_side_score(15u, 80u);
+    float diff = left_score - right_score;
+
+    if (diff > 60.0f)
+        return 1;   /* left is more open */
+
+    if (diff < -60.0f)
+        return -1;  /* right is more open */
+
+    return 0;       /* almost equal / not confident */
+}
+
 static i8 choose_open_side(void)
 {
+    i8 open_side = side_from_open_score();
+    if (open_side != 0)
+        return open_side;
+
     Gap_t gap;
     if (Avoid_FindBestGap(&gap))
         return side_from_gap(&gap);
@@ -628,22 +655,17 @@ static i8 choose_object_escape_side(const Gap_t *gap)
      * deg lon hon 90 la ben trai, deg nho hon 90 la ben phai.
      *
      * Quyet dinh uu tien:
-     * 1) Vat lech ben nao thi ne sang ben nguoc lai.
-     * 2) Neu vat gan giua, ben nao that su thoang hon thi chon ben do.
+     * 1) Ben nao that su thoang hon thi chon ben do.
+     * 2) Neu hai ben gan ngang nhau, vat lech ben nao thi ne sang ben nguoc lai.
      * 3) Cuoi cung moi dung gap/nav.dir.
      */
+    i8 open_side = side_from_open_score();
+    if (open_side != 0)
+        return open_side;
+
     i8 blocked_side = side_from_blocked_side();
     if (blocked_side != 0)
         return blocked_side;
-
-    float left_score = escape_side_score(100u, 165u);
-    float right_score = escape_side_score(15u, 80u);
-    float diff = left_score - right_score;
-
-    if (diff > 60.0f)
-        return 1;
-    if (diff < -60.0f)
-        return -1;
 
     return gap_side;
 }

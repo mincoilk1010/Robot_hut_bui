@@ -14,16 +14,20 @@ PH_t ph = {0};
 Turn_t turn = {0};
 
 static float heading_err_old = 0.0f;
+static float heading_err_i = 0.0f;
 static volatile u8 heading_hold_enabled = 1u;
 static volatile float heading_w_trim = 0.0f;
 
 #define TURN_TIMEOUT_MS     5500u
 #define TURN_SETTLE_MS      120u
-#define HH_DEADBAND_DEG     0.45f
-#define HH_KP_MIN           0.020f
-#define HH_KP_SPEED         0.012f
-#define HH_KD_STRAIGHT      0.0015f
-#define HH_W_LIMIT          0.30f
+#define HH_DEADBAND_DEG     0.30f
+#define HH_KP_MIN           0.026f
+#define HH_KP_SPEED         0.016f
+#define HH_KI_STRAIGHT      0.0008f
+#define HH_KD_STRAIGHT      0.0020f
+#define HH_W_LIMIT          0.38f
+#define HH_I_LIMIT_DEG_S    25.0f
+#define HH_MOVING_TARGET_UPDATE_DEG 8.0f
 
 static float norm_deg(float a)
 {
@@ -37,10 +41,30 @@ float angle_diff(float t, float c)
     return norm_deg(t - c);
 }
 
+static u8 heading_straight_move_active(void)
+{
+    return (fabsf(g_sp_v) >= MOTOR_SP_DEADBAND &&
+            (turn.state == TR_IDLE || turn.state == TR_DONE ||
+             turn.state == TR_TOUT)) ? 1u : 0u;
+}
+
 void HeadingHold_SetTarget(float target_deg)
 {
-    heading_target = norm_deg(target_deg);
+    float target = norm_deg(target_deg);
+
+    /* Neu xe dang chay thang, khong cho target troi theo yaw hien tai.
+     * Truong hop hay gap: vong while goi HeadingHold_SetTarget(yaw) lien tuc,
+     * robot lech den dau thi target cung doi den do -> mat giu huong.
+     * Van cho phep doi target lon (vi du sau khi xoay 90 do).
+     */
+    if (heading_hold_enabled && heading_straight_move_active() &&
+        fabsf(angle_diff(target, heading_target)) < HH_MOVING_TARGET_UPDATE_DEG) {
+        return;
+    }
+
+    heading_target = target;
     heading_err_old = 0.0f;
+    heading_err_i = 0.0f;
 }
 
 void HeadingHold_SetTrim(float w_trim)
@@ -53,6 +77,7 @@ void HeadingHold_Enable(u8 enable)
     heading_hold_enabled = enable ? 1u : 0u;
     if (!heading_hold_enabled) {
         heading_err_old = 0.0f;
+        heading_err_i = 0.0f;
         heading_w_trim = 0.0f;
         g_sp_w = 0.0f;
     }
@@ -72,6 +97,7 @@ void HeadingHold_Task(void)
         (turn.state == TR_IDLE || turn.state == TR_DONE ||
          turn.state == TR_TOUT)) {
         heading_err_old = 0.0f;
+        heading_err_i = 0.0f;
         g_sp_w = 0.0f;
         return;
     }
@@ -83,15 +109,22 @@ void HeadingHold_Task(void)
     if (fabsf(err) < HH_DEADBAND_DEG) {
         err = 0.0f;
         derr = 0.0f;
+        heading_err_i *= 0.92f;
+    } else {
+        heading_err_i += err * dt_s;
+        heading_err_i = limit(heading_err_i,
+                              -HH_I_LIMIT_DEG_S,
+                              HH_I_LIMIT_DEG_S);
     }
 
     float speed_ratio = fabsf(g_sp_v) / PH_MAX_V;
     speed_ratio = limit(speed_ratio, 0.0f, 1.0f);
 
     float kp = HH_KP_MIN + HH_KP_SPEED * speed_ratio;
+    float ki = HH_KI_STRAIGHT;
     float kd = HH_KD_STRAIGHT;
 
-    g_sp_w = kp * err + kd * derr + heading_w_trim;
+    g_sp_w = kp * err + ki * heading_err_i + kd * derr + heading_w_trim;
     g_sp_w = limit(g_sp_w, -HH_W_LIMIT, HH_W_LIMIT);
 }
 

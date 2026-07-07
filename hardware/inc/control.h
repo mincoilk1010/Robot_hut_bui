@@ -71,7 +71,7 @@ void Kinematics_obs_pos(float dist_m, float servo_deg, float *obs_x, float *obs_
 void Kinematics_reset(void);
 
 #define TR_KP         0.065f
-#define TR_KD         0.005f
+#define TR_KD         0.001f
 #define TR_W_MAX      2.20f
 #define TR_W_MIN      0.16f
 #define TR_SLOW_DEG   18.0f

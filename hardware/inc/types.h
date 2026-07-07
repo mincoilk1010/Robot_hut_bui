@@ -30,10 +30,10 @@ typedef int32_t i32;
 
 
 #define KP_r 1050.0f
-#define KI_r 600.0f
+#define KI_r 650.0f
 #define KD_r 0.01f
 #define KP_l 1050.0f
-#define KI_l 600.0f
+#define KI_l 650.0f
 #define KD_l 0.01f
 #define pid_int_min         -0.80f
 #define pid_int_max          0.80f
